@@ -20,7 +20,8 @@ import tempfile
 import time
 from pathlib import Path
 
-OWNER = "Rayyyyyyyyyyyyyyyyyyyy"
+# The account that may be written to: the logged-in gh user, set by main() (the shim gets it from the environment).
+OWNER = os.environ.get("AGENT_FLOW_E2E_OWNER", "")
 FIXTURE = f"{OWNER}/agent-flow-fixture"
 ROOT = Path(__file__).resolve().parents[1]
 MAX_RUN_USD, MAX_TOTAL_USD = 5.0, 40.0
@@ -203,7 +204,7 @@ def make_env(run_dir, token):
            
            "GH_TOKEN": token, "GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1", "GIT_TERMINAL_PROMPT": "0",
            "GIT_SSH_COMMAND": f"ssh -i {Path.home()}/.ssh/id_rsa -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile={home}/known_hosts",
-           "AGENT_FLOW_REAL_GH": shutil.which("gh"), "AGENT_FLOW_REAL_GIT": shutil.which("git"),
+           "AGENT_FLOW_E2E_OWNER": OWNER, "AGENT_FLOW_REAL_GH": shutil.which("gh"), "AGENT_FLOW_REAL_GIT": shutil.which("git"),
            "AGENT_FLOW_SHIM_LOG": str(run_dir / "shim.log"), "FAKE_DEPLOY_LOG": str(run_dir / "deploy.log")}
     for cmd in (["marketplace", "add", str(ROOT)], ["install", "agent-flow@agent-flow"]):
         sh("claude", "plugin", *cmd, env=env)
@@ -441,6 +442,9 @@ def main():
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--out", type=Path, default=ROOT / "docs/agent-flow/e2e")
     a = ap.parse_args()
+    global OWNER, FIXTURE
+    OWNER = sh("gh", "api", "user", "--jq", ".login")
+    FIXTURE = f"{OWNER}/agent-flow-fixture"
     names = ORDER if a.all else a.scenarios
     unknown = [n for n in names if n not in GOALS]
     if unknown or not names:

@@ -7,7 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import e2e
 
-ME = e2e.OWNER
+e2e.OWNER = ME = "maintainer"
 
 
 class ShimGh(unittest.TestCase):
