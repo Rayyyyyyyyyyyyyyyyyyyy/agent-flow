@@ -79,3 +79,4 @@ Audit every report (see `audit.md`). The main session never edits the audit.
 - **Review passes** when the latest round has no FAIL and every item has an audited PASS in some round (or an UNKNOWN left for the user to judge).
 - **At most two rounds.** If round 2 still has a FAIL, or an item went from PASS to FAIL, stop and list the remaining problems for the user. Do not run a third round.
 - **UNKNOWN**: if the missing tool, environment or permission can be supplied, supply it and review again. Otherwise list the item as "done but unverified" and say what is missing.
+- Merge only after `scripts/merge_gate.py <pr-number>` exits 0; it prints why when blocked.
