@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Preflight for a first run: print what is missing and the exact fix. Exit 1 if a required piece is missing."""
-import os
 import shutil
 import subprocess
 import sys
+
+import sandbox
 
 
 def run(*cmd):
@@ -46,7 +47,7 @@ def main():
         add("FAIL", "python %d.%d is older than 3.11" % sys.version_info[:2], "install Python 3.11 or newer")
     if not shutil.which("claude"):
         add("FAIL", "claude CLI not installed", "npm install -g @anthropic-ai/claude-code")
-    if os.environ.get("AGENT_FLOW_SANDBOX") == "none" or not (shutil.which("sandbox-exec") or shutil.which("bwrap")):
+    if not sandbox.available():
         add("WARN", "sandbox unavailable: audits run project commands unsandboxed", "Linux: install bubblewrap (apt install bubblewrap)")
     for level, what, fix in problems:
         print(f"{level} {what}\n  Fix: {fix}")
