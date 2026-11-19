@@ -42,7 +42,7 @@ Then run every ticket's Verify commands on the unimplemented tree. Those meant t
 
 ## 6. Dispatch
 
-One `implementer` subagent per ticket, one worktree each: `git worktree add ../<repo>-<NN> -b <topic>/<NN> <integration branch>`. Message and report format: [tickets.md](tickets.md). After a subagent ends, check for leftover processes (`pgrep -fl`, `lsof` to confirm the owner before killing) and remove its worktree when its PR is merged.
+One subagent per ticket (`subagent_type: agent-flow:implementer`), one worktree each: `git worktree add ../<repo>-<NN> -b <topic>/<NN> <integration branch>`. Message and report format: [tickets.md](tickets.md). After a subagent ends, check for leftover processes (`pgrep -fl`, `lsof` to confirm the owner before killing) and remove its worktree when its PR is merged.
 
 Follow-ups that belong to the finish line become new tickets; anything beyond it goes into Decisions as a question.
 

@@ -41,9 +41,9 @@ Detail for each step: [references/workflow.md](references/workflow.md). A step i
 3. **Research and CI first.** Read official docs and source, derive the repo's verify commands, and make sure CI runs them on every PR; if not, the CI PR is the first ticket. Done: the verify commands are recorded in `discussion.md` and CI is green on the default branch.
 4. **Spec and tickets.** Write `docs/<topic>/spec.md`, then one GitHub issue per verifiable behavior in the format of [references/tickets.md](references/tickets.md). Done: every issue has Scope, Out of scope, runnable Verify, Blocked by, and the ticket marker.
 5. **Clarity gate.** A fresh subagent reads only the issue files and lists what it would have to guess. Add the guesses that change a Verify result or a ticket interface; leave the rest. Run every Verify command before implementation: each must fail for the right reason or be marked as a check that already passes.
-6. **Dispatch.** One `implementer` subagent per ticket, one git worktree each, ordered by Blocked by; independent tickets run in parallel. Each ticket ends as a PR. Done: PR open with the ticket marker and the implementer's report.
+6. **Dispatch.** One subagent per ticket (`subagent_type: agent-flow:implementer`), one git worktree each, ordered by Blocked by; independent tickets run in parallel. Each ticket ends as a PR. Done: PR open with the ticket marker and the implementer's report.
 7. **Check.** Per PR: CI green, then one independent review following [references/review.md](references/review.md), then the audit following [references/audit.md](references/audit.md). Scripts, paths relative to `${CLAUDE_PLUGIN_ROOT}`:
-   - `scripts/review.py <prompt-file> [--cwd <repo>] [--model opus]` runs the reviewer.
+   - `scripts/review.py <prompt-file> [--cwd <repo>] [--model opus]` runs the reviewer (agent `agent-flow:reviewer`); the report format is in [references/review.md](references/review.md).
    - `scripts/audit.py <report> --repo <repo>` re-runs the report's evidence; exit 0 passed, 1 failed, 3 partly unverified.
    - `scripts/merge_gate.py <pr-number> [--repo-root <dir>]` exit 0 mergeable, 1 blocked.
    These scripts may not exist yet in a checkout under construction; a missing script is a blocker to report, not to emulate.
