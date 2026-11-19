@@ -1,0 +1,12 @@
+{
+  "name": "agent-flow",
+  "owner": { "name": "Rayyyyyyyyyyyyyyyyyyyy" },
+  "plugins": [
+    {
+      "name": "agent-flow",
+      "source": "./plugins/agent-flow",
+      "description": "Agent flow skill",
+      "version": "0.0.0"
+    }
+  ]
+}

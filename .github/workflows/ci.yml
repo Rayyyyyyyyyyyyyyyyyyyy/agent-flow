@@ -1,0 +1,23 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  verify:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm install -g @anthropic-ai/claude-code
+      - run: claude plugin validate .
+      - run: python3 scripts/no_cjk.py plugins/agent-flow
+      - name: Install into fresh HOME
+        run: |
+          export HOME="$(mktemp -d)"
+          claude plugin marketplace add "$PWD"
+          claude plugin install agent-flow@agent-flow
+          claude plugin list | grep agent-flow
+      - run: python3 -m unittest discover -s tests -v
