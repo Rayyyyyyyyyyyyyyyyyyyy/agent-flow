@@ -66,6 +66,7 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 - 2026-11-19 agent: C14 narrowed to what a script can observe (review.py, harness JSON); interactive cost goes to `/cost`.
 - 2026-11-19 agent: Developer Advocate review adopted (C2, C4, C5, C7, C9, C10 rewritten; C11-C15 added; v0.1 ships implementer + reviewer roles only). Branch protection is used when the plan allows it; otherwise the agent itself checks CI green via `gh` before merging and doctor says so. Verified: GitHub Free private repos have no branch protection (docs.github.com about-protected-branches); plugin sources can pin `ref`/`sha` (code.claude.com plugin-marketplaces); the maintainer's gh token lacks `workflow` scope, ssh push is unaffected.
 - 2026-11-19 user (「照你建議的沙盒做法」): audit reruns use (1) file-read evidence + read-only argv allowlist with `shell=False` on all platforms; (2) project-code commands only under a detected sandbox (macOS Seatbelt, Linux bwrap), isolated in one module; (3) otherwise three states passed / failed / partly unverified, unverified commands printed for the user or run with an explicit per-run opt-in, partly unverified blocks agent merge; (4) srt optional, never required; native Windows → WSL2. Source: `docs/research/sandbox-for-audit-reruns.md`.
+- 2026-11-19 user (「1 照你推薦，繼續做完」): v0.1 stays a Claude Code plugin; an MCP server exposing audit/merge_gate/doctor/check_discussion is a v0.2 candidate.
 
 ## Open questions
 
