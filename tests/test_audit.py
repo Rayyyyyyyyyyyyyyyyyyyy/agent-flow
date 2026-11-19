@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -133,9 +134,12 @@ class Version(Case):
         env = {k: v for k, v in os.environ.items() if k != "AGENT_FLOW_SKIP_STAMP"}
         report = self.tmp / "r.md"
         report.write_text(HEADER.format(commit=self.commit) + "### C1 — PASS\nCriterion: x\nPosition: `hello.py:1`\nContains: `hello`\n")
-        done = subprocess.run([sys.executable, str(SCRIPTS / "audit.py"), str(report), "--repo", str(self.repo)], capture_output=True, text=True, env=env)
+        plugin = self.tmp / "plugin"
+        shutil.copytree(SCRIPTS.parent, plugin)
+        (plugin / "auditor/canary-stamp.txt").write_text("version: 9.9.9\n")
+        done = subprocess.run([sys.executable, str(plugin / "scripts/audit.py"), str(report), "--repo", str(self.repo)], capture_output=True, text=True, env=env)
         self.assertEqual(done.returncode, 2)
-        self.assertIn("canary stamp is for", done.stderr)
+        self.assertIn(f"canary stamp is for 9.9.9, plugin is {VERSION}", done.stderr)
 
 
 class NoClaude(Case):
