@@ -2,7 +2,7 @@
 
 > Working language of this record follows the user (zh-TW). The shipped plugin itself is English (C8).
 
-## Original words (verbatim)
+## Original words
 
 > 我有個想法，我要改變主詞
 > 意思是說 我要打包main workflow這套方法弄成skill
@@ -19,6 +19,13 @@
 
 (2026-11-19, session started in skill-workflow main)
 
+## Authorizations
+
+> 直接做成公開版 — publishing agent-flow as a public plugin (tag, release, README) is the goal itself (2026-11-19).
+> 名稱用 agent-flow，開新 repo，MIT — https://github.com/Rayyyyyyyyyyyyyyyyyyyy/agent-flow.git (2026-11-19).
+> 我不要被問，要做就是做完 pr and verify and merge — applies to this project's own work (2026-11-19).
+> 會影響到他人的才要做詢問 / 金鑰、付費、使用者自己的資料 要警告 (2026-11-19).
+
 ## Decisions
 
 - 2026-11-19 user: package as a **Claude Code plugin** (skill + 6 roles + scripts), marketplace = this repo.
@@ -34,7 +41,7 @@
 - 2026-11-19 agent: Developer Advocate review adopted (C2, C4, C5, C7, C9, C10 rewritten; C11-C15 added; v0.1 ships implementer + reviewer roles only). Branch protection is used when the plan allows it; otherwise the agent itself checks CI green via `gh` before merging and doctor says so. Verified: GitHub Free private repos have no branch protection (docs.github.com about-protected-branches); plugin sources can pin `ref`/`sha` (code.claude.com plugin-marketplaces); the maintainer's gh token lacks `workflow` scope, ssh push is unaffected.
 - 2026-11-19 user (「照你建議的沙盒做法」): audit reruns use (1) file-read evidence + read-only argv allowlist with `shell=False` on all platforms; (2) project-code commands only under a detected sandbox (macOS Seatbelt, Linux bwrap), isolated in one module; (3) otherwise three states passed / failed / partly unverified, unverified commands printed for the user or run with an explicit per-run opt-in, partly unverified blocks agent merge; (4) srt optional, never required; native Windows → WSL2. Source: `docs/research/sandbox-for-audit-reruns.md`.
 
-## Finish line (v0.1)
+## Finish line
 
 Reviewed by the agency-agents Developer Advocate role (2026-11-19); its rewrites are folded in. Each line names the evidence that proves it from outside the agent.
 
@@ -60,6 +67,6 @@ Reviewed by the agency-agents Developer Advocate role (2026-11-19); its rewrites
 
 Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Windows (WSL2 documented); retro and method log; agency-agents / grilling integration; upgrade migration (README: old `.audit.md` stay bound to their version); uninstall beyond a README section.
 
-## Open questions / frontier
+## Open questions
 
-- Next: push, cut issues, build.
+- Next: issues #1-#13 (contracts in `docs/agent-flow/contracts.md`), build in dependency order.
