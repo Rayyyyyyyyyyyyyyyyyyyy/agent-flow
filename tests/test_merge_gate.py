@@ -79,6 +79,10 @@ class MergeGateTest(unittest.TestCase):
     def test_merge_never_blocks(self):
         self.assertEqual(self.gate(config="x: 1\nmerge: never\n")[0], 1)
 
+    def test_merge_never_tolerates_case_and_spaces(self):
+        for line in ("merge:never", "Merge: Never ", "  MERGE :  never"):
+            self.assertEqual(self.gate(config=line + "\n")[0], 1, line)
+
     def test_other_config_passes(self):
         self.assertEqual(self.gate(config="merge: auto\n")[0], 0)
 

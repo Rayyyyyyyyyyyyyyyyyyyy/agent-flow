@@ -49,7 +49,7 @@ def main(argv=None):
     if (root / ".agent-flow/STOP").exists():
         blocked.append(".agent-flow/STOP exists")
     cfg = root / ".agent-flow/config"
-    if cfg.is_file() and "merge: never" in cfg.read_text().splitlines():
+    if cfg.is_file() and any(re.fullmatch(r"\s*merge\s*:\s*never\s*", l, re.I) for l in cfg.read_text().splitlines()):
         blocked.append(".agent-flow/config says merge: never")
     for r in blocked:
         print("BLOCKED: " + r)
