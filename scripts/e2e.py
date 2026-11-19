@@ -199,7 +199,8 @@ def make_env(run_dir, token):
     bin_dir.mkdir()
     for t in ("gh", "git"):
         (bin_dir / t).symlink_to(Path(__file__).resolve())
-    env = {"PATH": f"{bin_dir}:{os.environ['PATH']}", "HOME": str(home), "TERM": "dumb", "LANG": "en_US.UTF-8",
+    env = {"PATH": f"{bin_dir}:{os.environ['PATH']}", "HOME": str(home), "TERM": "dumb", "LANG": "en_US.UTF-8", "USER": os.environ["USER"], "LOGNAME": os.environ["USER"],  # the Keychain lookup needs USER
+           
            "GH_TOKEN": token, "GH_PROMPT_DISABLED": "1", "GH_NO_UPDATE_NOTIFIER": "1", "GIT_TERMINAL_PROMPT": "0",
            "GIT_SSH_COMMAND": f"ssh -i {Path.home()}/.ssh/id_rsa -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile={home}/known_hosts",
            "AGENT_FLOW_REAL_GH": shutil.which("gh"), "AGENT_FLOW_REAL_GIT": shutil.which("git"),
@@ -229,7 +230,7 @@ def run_claude(prompt, env, clone, transcript, secrets, stop_when=None, timeout=
            "--max-budget-usd", "6", "--no-session-persistence"]
     start = time.time()
     with open(transcript, "w") as out:
-        p = subprocess.Popen(cmd, cwd=clone, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
+        p = subprocess.Popen(cmd, cwd=clone, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, start_new_session=True)
         killed = False
         import threading
         t = threading.Thread(target=lambda: [out.write(redact(l, secrets)) for l in p.stdout], daemon=True)
