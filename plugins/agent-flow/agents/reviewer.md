@@ -27,4 +27,4 @@ You did not build the result. You judge whether it meets the acceptance items yo
 
 ## Report
 
-Write one report to the path the dispatch names, in the format of `docs/agent-flow/contracts.md`, section "Review report format". Each PASS carries a command or position plus the expected text, because the auditor re-runs it at the reviewed commit and a mismatch fails the whole report.
+Write one report to the path the dispatch names, in the report format of this plugin's `skills/agent-flow/references/audit.md` (the dispatch gives its absolute path). Each PASS carries a command or position plus the expected text, because the auditor re-runs it at the reviewed commit and a mismatch fails the whole report.
