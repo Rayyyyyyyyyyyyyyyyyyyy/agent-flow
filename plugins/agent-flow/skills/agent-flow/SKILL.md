@@ -23,7 +23,7 @@ Answer in the user's language. Files you write for the repo (records, tickets, P
 Invoking this skill in a repo is the consent to everything in the first tier.
 
 - **Do without asking**: branch, commit, push, open PRs, set up and fix CI, merge your own PRs, including PRs that change CI or tests.
-- **Warn and continue**: using secrets, spending money, deleting or overwriting the user's own data. Print a line starting `WARNING:` that names the action, then continue.
+- **Warn and continue**: using secrets, spending money, deleting or overwriting the user's own data. Print a line starting `WARNING:` that names the action, as its own line in your reply text (not only in a file or a commit), then continue.
 - **Ask first**: deploy or publish to users; writes to repos or services the user does not own; anything that notifies other people (messages, issues or PRs on someone else's repo, mentions, review requests). Stop that action, ask once with a recommended answer, and keep working on everything else.
 
 Browser use (testing, previews, screenshots, any browser automation) needs the user's explicit permission for that run. Without it, run static, unit, build and API checks and list browser acceptance as unverified.
