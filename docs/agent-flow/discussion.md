@@ -30,6 +30,7 @@
 - 2026-11-19 user (「c6 不要被問，要做就是做完 pr and verify and merge」): replaces the conservative-permissions default; invoking the plugin in a repo is the consent.
 - 2026-11-19 user (「會影響到他人的才要做詢問」): the only stop condition is impact on other people.
 - 2026-11-19 user (「金鑰、付費、使用者自己的資料 要警告」): those three get a visible warning and the run continues.
+- 2026-11-19 agent: C14 narrowed to what a script can observe (review.py, harness JSON); interactive cost goes to `/cost`.
 - 2026-11-19 agent: Developer Advocate review adopted (C2, C4, C5, C7, C9, C10 rewritten; C11-C15 added; v0.1 ships implementer + reviewer roles only). Branch protection is used when the plan allows it; otherwise the agent itself checks CI green via `gh` before merging and doctor says so. Verified: GitHub Free private repos have no branch protection (docs.github.com about-protected-branches); plugin sources can pin `ref`/`sha` (code.claude.com plugin-marketplaces); the maintainer's gh token lacks `workflow` scope, ssh push is unaffected.
 - 2026-11-19 user (「照你建議的沙盒做法」): audit reruns use (1) file-read evidence + read-only argv allowlist with `shell=False` on all platforms; (2) project-code commands only under a detected sandbox (macOS Seatbelt, Linux bwrap), isolated in one module; (3) otherwise three states passed / failed / partly unverified, unverified commands printed for the user or run with an explicit per-run opt-in, partly unverified blocks agent merge; (4) srt optional, never required; native Windows → WSL2. Source: `docs/research/sandbox-for-audit-reruns.md`.
 
@@ -54,7 +55,7 @@ Reviewed by the agency-agents Developer Advocate role (2026-11-19); its rewrites
 - C11 time to first success: following README Quick Start verbatim in a fresh `HOME` and a fresh clone of the fixture repo reaches the first merged PR; the transcript and the measured minutes go in README (target <= 20 min excluding CI wait; the target is a guess)
 - C12 preflight: `agent-flow doctor` (script) reports each missing piece with its fix and a non-zero exit: git, gh, gh login, push access, Python 3.11+, claude CLI, sandbox availability, branch-protection availability (public or paid plan), HTTPS remote without `workflow` scope; one unit test per check
 - C13 resumable: killing a run after the PR is opened and invoking again leaves exactly one issue and one PR for that ticket (`gh issue list` / `gh pr list` counts)
-- C14 cost shown: each run ends with tokens and $ per phase; README states the C10 measured numbers, which match the run output
+- C14 cost shown: `review.py` and the E2E harness print tokens and $ (from `claude -p --output-format json`); the skill tells interactive users to check `/cost` (an interactive session cannot read its own usage); README states the C10 measured numbers, which match the harness output
 - C15 no model calls on the user's machine for canaries: canaries run by the maintainer before tagging; the stamp ships with the version; a test asserts `audit.py` does not invoke `claude` on the deterministic path
 
 Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Windows (WSL2 documented); retro and method log; agency-agents / grilling integration; upgrade migration (README: old `.audit.md` stay bound to their version); uninstall beyond a README section.
