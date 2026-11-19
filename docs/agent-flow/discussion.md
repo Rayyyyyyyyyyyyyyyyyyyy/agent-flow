@@ -28,6 +28,7 @@
 - 2026-11-19 user: name `agent-flow`, new public repo, MIT.
 - 2026-11-19 user: skill-workflow PR #9 and msp-web-vue3 are parked.
 - 2026-11-19 user (「c6 不要被問，要做就是做完 pr and verify and merge」): replaces the conservative-permissions default; invoking the plugin in a repo is the consent.
+- 2026-11-19 user (「會影響到他人的才要做詢問」): the only stop condition is impact on other people; secrets, payment and the user's own data are the user's call and need no prompt.
 - 2026-11-19 user (「照你建議的沙盒做法」): audit reruns use (1) file-read evidence + read-only argv allowlist with `shell=False` on all platforms; (2) project-code commands only under a detected sandbox (macOS Seatbelt, Linux bwrap), isolated in one module; (3) otherwise three states passed / failed / partly unverified, unverified commands printed for the user or run with an explicit per-run opt-in, partly unverified blocks agent merge; (4) srt optional, never required; native Windows → WSL2. Source: `docs/research/sandbox-for-audit-reruns.md`.
 
 ## Finish line (draft, not yet confirmed)
@@ -37,7 +38,7 @@
 - C3 first-party only, licenses clear: no vendored third-party skill; LICENSE + NOTICE; roles derived from agency-agents (MIT) keep its notice (script check)
 - C4 works without companions: fresh `HOME`, only this plugin, C2 fixture passes
 - C5 no personal data: grep for handle, `/Users/`, email, `rtk`, `ponytail`, `Asia/Taipei` = 0
-- C6 autonomous by default: inside the repo where it is invoked, the agent branches, commits, pushes, opens PRs, verifies and merges its own PRs once the gates pass, without asking. It stops only for accounts/secrets/payment, deploy or publish outside the repo, writes to repos it does not own, and irreversible deletion of user data (fixture run: zero questions to the user, PR merged with gates green)
+- C6 autonomous by default: inside the repo where it is invoked, the agent branches, commits, pushes, opens PRs, verifies and merges its own PRs once the gates pass, without asking. It asks only before actions that affect other people: deploy or publish to users, writes to repos or services owned by others, messages or issues/PRs that notify other people (fixture run: zero questions to the user, PR merged with gates green; a fixture step that would notify someone else stops and asks)
 - C7 cross-platform: script tests green on GitHub Actions macOS + Ubuntu; without a usable sandbox, project-code evidence is "unverified" (never "passed") and blocks agent merge
 - C8 English: CJK count in the plugin dir = 0; skill tells the agent to answer in the user's language
 - C9 releasable: tag `v0.1.0`, CHANGELOG, README install steps; install from the tag works
