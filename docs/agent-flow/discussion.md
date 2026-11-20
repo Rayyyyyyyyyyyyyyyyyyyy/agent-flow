@@ -67,8 +67,13 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 - 2026-11-19 agent: Developer Advocate review adopted (C2, C4, C5, C7, C9, C10 rewritten; C11-C15 added; v0.1 ships implementer + reviewer roles only). Branch protection is used when the plan allows it; otherwise the agent itself checks CI green via `gh` before merging and doctor says so. Verified: GitHub Free private repos have no branch protection (docs.github.com about-protected-branches); plugin sources can pin `ref`/`sha` (code.claude.com plugin-marketplaces); the maintainer's gh token lacks `workflow` scope, ssh push is unaffected.
 - 2026-11-19 user (「照你建議的沙盒做法」): audit reruns use (1) file-read evidence + read-only argv allowlist with `shell=False` on all platforms; (2) project-code commands only under a detected sandbox (macOS Seatbelt, Linux bwrap), isolated in one module; (3) otherwise three states passed / failed / partly unverified, unverified commands printed for the user or run with an explicit per-run opt-in, partly unverified blocks agent merge; (4) srt optional, never required; native Windows → WSL2. Source: `docs/research/sandbox-for-audit-reruns.md`.
 - 2026-11-19 user (「1 照你推薦，繼續做完」): v0.1 stays a Claude Code plugin; an MCP server exposing audit/merge_gate/doctor/check_discussion is a v0.2 candidate.
+- 2026-11-20 user (「阿你沒問我就開了個假專案做事」「有病嗎？我有說是這樣的驗證方式嗎」「虛構的都刪掉」): the fixture-repo E2E was never agreed. PR #27 closed, fixture repo to be deleted. Verification methods that create external resources or spend usage need the user's explicit yes (rule in references/workflow.md step 2).
+- 2026-11-20 user (「檢討 token都花在哪裡」「明文訂好」): session phases, docs via subagent, land.py, verification agreed upfront (PR #28, review round 2 + audit passed; land.py fix PR #29).
 
 ## Open questions
 
-- Next: issues #1-#13 (contracts in `docs/agent-flow/contracts.md`), build in dependency order.
-
+- C2, C4, C6, C10, C11, C13 have no agreed verification method; ask the user (with cost estimates) before any E2E. Issue #12 stays open until then.
+- Lost with PR #27 and not yet re-landed: `scripts/check_discussion.py` (+ test) and the SKILL.md rule that the `WARNING:` line must appear in the reply text, not only in a file. Ask the user whether to restore them.
+- `agent-flow-fixture` repo still exists: deleting needs `gh auth refresh -h github.com -s delete_repo` (user's action), then `gh repo delete Rayyyyyyyyyyyyyyyyyyyy/agent-flow-fixture --yes`.
+- Unclear whether `plugins/agent-flow/auditor/canaries/` counts as "fictional" (user said 「虛構的都刪掉」); ask.
+- Next after those: one opus review + audit over v0.1, then #13 release (README, CHANGELOG, 0.1.0, re-run canaries for the new version, tag, pinned install).
