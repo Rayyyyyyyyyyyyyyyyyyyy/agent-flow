@@ -79,9 +79,12 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 
 - 2026-11-20 user (「對，merge 條件照你建議」): flow order confirmed: 0 doctor + kill switch + print the boundaries, 1 intake, 2 finish line, 3 (new) write the project's rules and verify, 4 spec and tickets, 5 clarity gate, 6 dispatch, 7 check (CI, review.py, audit.py), 8 land.py, 9 report. `merge_gate.py`'s conditions (CI green, audit passed, no kill switch) are a boundary; project rules may add merge conditions, never remove one.
 - 2026-11-20 user (「為什麼要跑 review.py 加 audit.py」「以後不跑 review/audit，記下來」): this repo's own PRs no longer run `review.py`/`audit.py` or merge through `land.py`; those tools run in the calling repo. A PR here merges on green CI (tests, `no_cjk.py`, `check_package.py`, plugin validate) with `gh pr merge --merge`; whether the rule text is right is the user's judgment.
+- 2026-11-20 user (「回到flow本身很單純 接收需求 確認需求 搜集資訊 切票 實作 review audit」「步驟改成我的 7 步」): the flow in `SKILL.md` and `references/workflow.md` is exactly 7 steps: 1 receive the request, 2 confirm the request (finish line), 3 gather information (incl. the repo's own rules and verify), 4 cut tickets (incl. the guess check), 5 implement, 6 review, 7 audit (ends with `land.py`). Doctor stays a start check; the report stays a closing section. Replaces the 9-step order above.
+- 2026-11-20 user (「現在是一個抽象的plugin 很多情境都是要依照呼叫端的repo 內容去制定」): the plugin is abstract; situations are decided from the calling repo's content, not fixed in the plugin.
 
 ## Open questions
 
+- `references/review.md` (and `agents/reviewer.md`): to be re-discussed with the user (「review.md 重新討論」), in light of the plugin being abstract: what review takes from the calling repo vs. what the plugin fixes. Do not change it before that.
 - Shipped rules for C2, C6, C13, C16 landed with tests (`tests/test_check_discussion.py`, `tests/test_rules.py`); the PR #27 `WARNING:`-in-reply rule is moot now that the warn tier is gone.
 - `agent-flow-fixture` repo still exists: deleting needs `gh auth refresh -h github.com -s delete_repo` (user's action), then `gh repo delete Rayyyyyyyyyyyyyyyyyyyy/agent-flow-fixture --yes`.
 - Canaries: they guard `audit.py` (a method tool) but run here and ship trap reports to every user; keep, move out of the plugin dir, or drop? Ask.
