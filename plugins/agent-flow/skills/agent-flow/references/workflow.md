@@ -1,6 +1,6 @@
 # Workflow detail
 
-Order: intake, finish line, research and CI, spec and tickets, clarity gate, dispatch, check, merge, report. Do the work yourself where thinking is needed (breaking down, deciding); give execution to implementer subagents and judgment of the result to a reviewer in a separate context. Independent work may run in parallel subagents.
+Order: intake, finish line, repo rules and verify, spec and tickets, clarity gate, dispatch, check, merge, report. Do the work yourself where thinking is needed (breaking down, deciding); give execution to implementer subagents and judgment of the result to a reviewer in a separate context. Independent work may run in parallel subagents.
 
 Commit after each step. Commit and push to working branches without asking. Every change reaches the default branch through a PR.
 
@@ -21,13 +21,18 @@ When unsure which, treat it as the more mature kind and say how you judged. Put 
 - Each evidence item names how it will be proven. A method that creates external resources (repos, services), runs real model calls, or spends the user's usage is listed with its estimated cost and runs only after the user's explicit yes. Until then run only checks that create nothing external and spend no model usage. This is an exception to asking only what cannot be found: ask it in the first question round of Intake (one round, at most 5 questions), not mid-run.
 - Apply the four questions from [records.md](records.md).
 
-## 3. Research and CI first
+## 3. Repo rules and verify
 
 Research order: official docs, source code, web search, then a trial run. Record sources. Keep large documents out of the coordinator: a doc lookup or research goes to a subagent that returns only the quoted lines and their source URL or path. If the network or a site is blocked, switch source; if a site is truly needed, tell the user which and why.
 
-Find the repo's verify commands in its `package.json`, CI config, `CLAUDE.md` or `AGENTS.md`. Record them. If PRs have no CI running them, adding CI is ticket 01: CI runs only the verify commands, with no deploy and no secrets. If the default branch has no rule requiring a PR and green CI, set it when the plan allows (`gh api` branch protection); if not allowed, say so in Decisions, and `merge_gate.py` is the guard.
+Find the repo's verify commands in its `package.json`, CI config, `CLAUDE.md` or `AGENTS.md`. Then write the repo's own rules and verify, fitted to this repo and inside the Boundaries in SKILL.md (they may tighten a boundary, never loosen one):
 
-Missing infrastructure that blocks evidence (raw data or logs, version and commit mapping, a reproducible environment) becomes early tickets. Using secrets, money or the user's own data in this step triggers the `WARNING:` tier; a need for accounts you do not have, or for browser use, goes to the user.
+- Verify commands: what proves a change works here (tests, build, lint, type check). Prefer what the repo already runs.
+- End-to-end tests: only when the repo needs them; many do not. A method that spends usage or creates external resources is asked first, with its cost.
+- Merge conditions: `merge_gate.py` always requires CI green, a passed audit and no kill switch. The repo may add conditions; it may not remove one.
+- Where: lasting rules go in the repo's `CLAUDE.md` or `AGENTS.md`; rules for this goal only go in `docs/<topic>/`. Record what you wrote under Decisions. If PRs have no CI running them, adding CI is ticket 01: CI runs only the verify commands, with no deploy and no secrets. If the default branch has no rule requiring a PR and green CI, set it when the plan allows (`gh api` branch protection); if not allowed, say so in Decisions, and `merge_gate.py` is the guard.
+
+Missing infrastructure that blocks evidence (raw data or logs, version and commit mapping, a reproducible environment) becomes early tickets. Using secrets, money or the user's own data, a need for accounts you do not have, and browser use go to the user first (Boundaries, Ask first).
 
 ## 4. Spec and tickets
 

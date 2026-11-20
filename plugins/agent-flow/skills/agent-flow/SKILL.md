@@ -5,7 +5,7 @@ description: Run a goal from words to merged PRs in the current repo, with writt
 
 # agent-flow
 
-The user hands over a goal, a direction or a seed. You take it to merged PRs, with evidence for every line of the finish line. You decide how; you ask only where Autonomy says Ask first.
+The user hands over a goal, a direction or a seed. You take it to merged PRs, with evidence for every line of the finish line. You decide how; you ask only where Boundaries says Ask first.
 
 Answer in the user's language. Files you write for the repo (records, tickets, PRs) follow the language the user writes in, except the fixed headings and markers named in the references.
 
@@ -16,18 +16,21 @@ Answer in the user's language. Files you write for the repo (records, tickets, P
 3. First run in a repo, meaning no `docs/*/discussion.md` exists: print this list, then continue without waiting.
    - Write actions: create branches and git worktrees; commit and push; open, update and merge PRs; create GitHub issues; add a CI workflow when none runs the checks; write `docs/<topic>/`, `GLOSSARY.md`, `docs/adr/`.
    - To stop merging: create `.agent-flow/STOP`, or put `merge: never` in `.agent-flow/config`. To stop everything: interrupt the session.
+   - The Ask first and Never lists from Boundaries.
 4. Resuming: a `docs/<topic>/discussion.md` for this goal exists. Read it and the open issues and PRs, then continue from the first unfinished step.
 
-## Autonomy
+## Boundaries
 
-Invoking this skill in a repo is the consent to everything in the first tier.
+These are the outer limits. The repo's own rules (flow step 3) may tighten them, never loosen them; where a repo rule conflicts with a boundary, the boundary wins. Invoking this skill in a repo is the consent to the first tier.
 
-- **Do without asking**: branch, commit, push, open PRs, set up and fix CI, merge your own PRs, including PRs that change CI or tests.
-- **Warn and continue**: using secrets or spending money while the work runs, deleting or overwriting the user's own data. Print a line starting `WARNING:` that names the action, then continue.
-- **Ask first, upfront**: a method chosen to verify the work that creates external resources, runs real model calls or spends the user's usage; this one is asked in the first question round, not warned about mid-run ([references/workflow.md](references/workflow.md) step 2).
-- **Ask first**: deploy or publish to users; writes to repos or services the user does not own; anything that notifies other people (messages, issues or PRs on someone else's repo, mentions, review requests). Stop that action, ask once with a recommended answer, and keep working on everything else.
-
-Browser use (testing, previews, screenshots, any browser automation) needs the user's explicit permission for that run. Without it, run static, unit, build and API checks and list browser acceptance as unverified.
+- **Do without asking**: branch, commit, push, open PRs, set up and fix CI, merge your own PRs through `land.py`, including PRs that change CI or tests.
+- **Ask first, upfront**: a method chosen to verify the work that creates external resources, runs real model calls or spends the user's usage. List it with its estimated cost in the first question round, not mid-run ([references/workflow.md](references/workflow.md) step 2).
+- **Ask first**: deploy or publish to users; writes to repos or services the user does not own; anything that notifies other people (messages, issues or PRs on someone else's repo, mentions, review requests); using secrets; spending money; deleting or overwriting the user's own data; browser use (testing, previews, screenshots, any browser automation). Stop that action, ask once with a recommended answer, and keep working on everything else. Without browser permission, run static, unit, build and API checks and list browser acceptance as unverified.
+- **Never**:
+  - claim done without evidence, or report an unverified check as verified;
+  - fabricate projects, repos, data or records and present them as verification;
+  - delete or weaken tests, checks, CI, these boundaries or the kill switch to make a gate pass;
+  - commit secrets or print them.
 
 ## Kill switch
 
@@ -39,7 +42,7 @@ Detail for each step: [references/workflow.md](references/workflow.md). A step i
 
 1. **Intake.** Classify the input as goal, direction or seed; a goal needs no reply. Create `docs/<topic>/discussion.md` with the user's words verbatim. Done: the file has the five headings from [references/records.md](references/records.md).
 2. **Finish line.** Write results, not methods, each as `- C<n> <text>` with an external `evidence:` an outside party can run or read. Done: every line has evidence.
-3. **Research and CI first.** Read official docs and source, derive the repo's verify commands, and make sure CI runs them on every PR; if not, the CI PR is the first ticket. Done: the verify commands are recorded in `discussion.md` and CI is green on the default branch.
+3. **Repo rules and verify.** Read official docs and source and the repo itself, then write this repo's own rules and verify inside Boundaries: its verify commands, the CI that runs them on every PR, whether it needs end-to-end tests (asked first if they cost usage or create external resources), and any merge conditions it adds to `merge_gate.py`'s fixed ones (CI green, audit passed, no kill switch; a repo may add conditions, never remove one). Write them into the repo's `CLAUDE.md` or `AGENTS.md`, or `docs/<topic>/` when they belong to this goal only. If no CI runs the verify commands, the CI PR is the first ticket. Done: the rules and verify commands are written, recorded in `discussion.md`, and CI is green on the default branch.
 4. **Spec and tickets.** Write `docs/<topic>/spec.md`, then one GitHub issue per verifiable behavior in the format of [references/tickets.md](references/tickets.md). Done: every issue has Scope, Out of scope, runnable Verify, Blocked by, and the ticket marker.
 5. **Clarity gate.** A fresh subagent reads only the issue files and lists what it would have to guess. Add the guesses that change a Verify result or a ticket interface; leave the rest. Run every Verify command before implementation: each must fail for the right reason or be marked as a check that already passes.
 6. **Dispatch.** One subagent per ticket (`subagent_type: agent-flow:implementer`), one git worktree each, ordered by Blocked by; independent tickets run in parallel. Each ticket ends as a PR. Done: PR open with the ticket marker and the implementer's report.
