@@ -28,11 +28,12 @@ Reviewed by the agency-agents Developer Advocate role (2026-11-19); its rewrites
 - C3 first-party only, licenses clear: `scripts/check_package.py` finds no third-party skill inside the plugin; LICENSE (MIT) and NOTICE exist; files derived from agency-agents carry its MIT notice
 - C4 works without companions: evidence: user judges (the user runs the installed plugin with no companion skills on a project of their choice)
 - C5 no personal data: `scripts/check_package.py` finds 0 hits for `/Users/`, email addresses, `rtk`, `ponytail`, `Asia/Taipei`; the GitHub handle appears only in `README.md` and `.claude-plugin/marketplace.json`
-- C6 autonomy with three tiers, all in the shipped rules (a unit test greps `SKILL.md` for each tier's rule):
-  (a) default: branch, commit, push, PR, CI, merge without asking, including the CI-setup PR;
-  (b) warn and continue: using secrets, spending money, deleting or overwriting the user's own data print a warning line (`WARNING:`) in the reply and the run continues;
-  (c) ask first: deploy/publish to users, writes to repos or services the user does not own, messages/issues/PRs that notify other people;
+- C6 outer boundaries and autonomy: `SKILL.md` has a Boundaries section that project rules may tighten but never loosen; a unit test greps each line:
+  (a) do without asking: branch, commit, push, PR, CI, merge, including the CI-setup PR;
+  (b) ask first: deploy/publish to users; writes to repos or services the user does not own; anything that notifies other people; using secrets, spending money, deleting or overwriting the user's own data; a verification method that spends usage, runs real model calls or creates external resources (asked upfront with a cost estimate); browser use;
+  (c) never: claim done without evidence or report unverified as verified; fabricate projects, data or records as verification; delete or weaken tests, checks, CI, the boundaries or the kill switch to make a gate pass; commit or print secrets;
   (d) kill switch: with `.agent-flow/STOP` present or `merge: never` in `.agent-flow/config`, `merge_gate.py` refuses to merge (unit tests)
+- C16 project rules: `SKILL.md` tells the agent in the calling repo to write that repo's own rules and verify (verify commands, CI, whether E2E is needed, merge conditions) into its `CLAUDE.md`/`AGENTS.md` or `docs/<topic>/`, inside the boundaries; a unit test greps the instruction; whether the result fits a project: evidence: user judges
 - C7 cross-platform: script tests green on GitHub Actions macOS and Ubuntu; on Ubuntu with bwrap installed the sandbox path really executes (not skipped); a job without any sandbox asserts project-code evidence is `unverified` and that merge is blocked
 - C8 English: CJK character count in the plugin directory (rules, roles, scripts, error messages) is 0; the skill tells the agent to answer in the user's language
 - C9 releasable: tag `v0.1.0`, CHANGELOG, README; a marketplace entry pinned to `ref: v0.1.0` installs and `claude plugin list` shows 0.1.0; `.audit.md` records the same version
@@ -72,9 +73,13 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 
 - 2026-11-20 user (「e2e是要by project 去跑的」「而且不是每個project都需要e2e」「C4 C10 C11 改成 user judges」): E2E is a per-project choice, not a default; agent-flow itself does not run one. C2, C6, C13, C14 are proven by unit tests and rule greps; C4, C10, C11 by user judgment. Issue #12 closed.
 
+- 2026-11-20 user (「執行的是呼叫plugin的repo 不是這裡啊」「是要告訴呼叫plugin的repo裡的agent 去寫適用他自己的rule and verify」「要寫出界線底線不能跨越的最外層界線」): the plugin ships the outer boundaries plus the method; the agent in the calling repo writes that repo's own rules and verify inside them (C16). Nothing of the flow is executed here.
+- 2026-11-20 user (「9 對」「2 警告改成用問」): the 9 boundaries in C6 stand; secrets, money and deleting or overwriting the user's own data move from warn-and-continue to ask first. Replaces the 2026-11-19 「要警告」 decision.
+- 2026-11-20 user (「py 工具是這套方法的執行方式 也就是原本skill-workflow做的事情」): the scripts (review, audit, merge_gate, land, doctor, sandbox) stay; they are how the method runs in the calling repo.
+
 ## Open questions
 
-- Tests for the new evidence: restore `scripts/check_discussion.py` (+ test, lost with PR #27) for C2; rule-grep tests for C6a-c and C13 (C14 is covered by `tests/test_review.py`). Also restore the SKILL.md rule that the `WARNING:` line appears in the reply text.
+- Next PR (shipped rules): add the Boundaries section to `SKILL.md` (C6), move the warn tier to ask first in `SKILL.md` and `references/workflow.md`, add the project-rules instruction (C16), with rule-grep tests for C6, C13, C16. Restore `scripts/check_discussion.py` (+ test, lost with PR #27) for C2.
 - `agent-flow-fixture` repo still exists: deleting needs `gh auth refresh -h github.com -s delete_repo` (user's action), then `gh repo delete Rayyyyyyyyyyyyyyyyyyyy/agent-flow-fixture --yes`.
-- Unclear whether `plugins/agent-flow/auditor/canaries/` counts as "fictional" (user said 「虛構的都刪掉」); ask.
+- Canaries: they guard `audit.py` (a method tool) but run here and ship trap reports to every user; keep, move out of the plugin dir, or drop? Ask.
 - Next after those: one opus review + audit over v0.1, then #13 release (README, CHANGELOG, 0.1.0, re-run canaries for the new version, tag, pinned install).

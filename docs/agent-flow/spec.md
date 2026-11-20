@@ -6,7 +6,7 @@ A developer who uses Claude Code can get code written, but not a finished, check
 
 ## Solution
 
-`agent-flow` is a public Claude Code plugin. A developer installs it once, opens Claude Code in their own repo and runs `/agent-flow:agent-flow <goal>`. The agent writes the finish line into `docs/<topic>/discussion.md`, adds CI if missing, cuts GitHub issues, dispatches an implementer subagent per ticket in its own worktree, runs the deterministic gate, one independent reviewer, an audit that re-runs the reviewer's evidence, and merges. It asks only before actions that affect other people, warns on secrets, money and the user's own data, and stops merging when a kill switch is present.
+`agent-flow` is a public Claude Code plugin. A developer installs it once, opens Claude Code in their own repo and runs `/agent-flow:agent-flow <goal>`. The agent writes the finish line into `docs/<topic>/discussion.md`, adds CI if missing, cuts GitHub issues, dispatches an implementer subagent per ticket in its own worktree, runs the deterministic gate, one independent reviewer, an audit that re-runs the reviewer's evidence, and merges. The plugin ships outer boundaries that no project rule may loosen, and tells the agent to write the calling repo's own rules and verify inside them. It asks before actions that affect other people and before using secrets, spending money or deleting the user's own data, and stops merging when a kill switch is present. All of this runs in the calling repo; this repo only provides it.
 
 ## User Stories
 
@@ -20,7 +20,7 @@ A developer who uses Claude Code can get code written, but not a finished, check
 8. As a developer, I want one independent reviewer and an audit that re-runs the reviewer's evidence, so that a review cannot pass on claims alone.
 9. As a developer, I want audit to work on macOS and Linux, and to say "unverified" instead of "passed" when it cannot sandbox project code, so that I am never misled.
 10. As a developer, I want the agent to merge its own PRs when the gates pass, without asking me, so that the flow finishes unattended.
-11. As a developer, I want a warning whenever the agent uses secrets, spends money or deletes my own data, so that nothing surprising happens silently.
+11. As a developer, I want to be asked before the agent uses secrets, spends money or deletes my own data, so that nothing surprising happens.
 12. As a developer, I want the agent to stop and ask before anything that affects other people (deploys, other people's repos, notifications), so that I stay responsible for those.
 13. As a developer, I want a STOP file or `merge: never` setting, so that I can keep PRs open for my own review.
 14. As a developer, I want to re-run after a crash without duplicate issues or PRs.
@@ -33,7 +33,7 @@ A developer who uses Claude Code can get code written, but not a finished, check
 - Repo layout: the repo is the marketplace (`.claude-plugin/marketplace.json`, name `agent-flow`); the plugin lives in `plugins/agent-flow/` (`.claude-plugin/plugin.json`, `skills/agent-flow/SKILL.md` + `references/`, `agents/`, `scripts/`). Repo-level tooling (`scripts/check_package.py`, `tests/`, CI) stays outside the plugin directory.
 - Source of the method: skill-workflow at commit 31114d7 (`CLAUDE.md`, `method/WORKFLOW.md`, `method/AUDIT.md`, `method/agents/issue-tracker.md`, `method/policies/P00-GROUNDED-ANSWER.md`, `.claude/agents/implementer.md`, `.claude/agents/reviewer.md`, `scripts/review.py`, `scripts/audit.py`, `scripts/audit_canary.py`, `.claude/auditor/`). Port, generalise, translate to English; drop personal settings.
 - Records: `docs/<topic>/discussion.md` (verbatim words, finish line, authorizations, decisions, open questions/frontier), `docs/<topic>/spec.md`, `GLOSSARY.md`, `docs/adr/`; work log in issues and PRs. Review reports and `.audit.md` live in `docs/<topic>/reviews/`.
-- Autonomy tiers (C6): do / warn (`WARNING:` line, continue) / ask. CI and test changes are merged by the agent like any other PR.
+- Boundaries (C6): do / ask first / never, plus the kill switch; project rules may tighten, never loosen. CI and test changes are merged by the agent like any other PR.
 - Merge gate: a script decides mergeability: CI green (via `gh`), latest audit passed with no `unverified`, no `.agent-flow/STOP`, `merge` not `never` in `.agent-flow/config`. Branch protection is set when the plan allows; otherwise the gate script is the only guard and doctor says so.
 - Audit: evidence kinds are file position (read directly), read-only commands from an argv allowlist (run with `shell=False`), and project commands (run only inside a sandbox: macOS Seatbelt, Linux bwrap, one module). Without a sandbox, project commands are `unverified`. Rules come from the installed plugin version, recorded in `.audit.md`. No `claude` call on the deterministic path.
 - Canaries: maintainer-only script, run before tagging; stamp ships in the plugin.
