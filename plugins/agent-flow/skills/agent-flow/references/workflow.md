@@ -1,10 +1,10 @@
 # Workflow detail
 
-Order: intake, finish line, repo rules and verify, spec and tickets, clarity gate, dispatch, check, merge, report. Do the work yourself where thinking is needed (breaking down, deciding); give execution to implementer subagents and judgment of the result to a reviewer in a separate context. Independent work may run in parallel subagents.
+Order: receive the request, confirm the request, gather information, cut tickets, implement, review, audit; then report. Do the work yourself where thinking is needed (breaking down, deciding); give execution to implementer subagents and judgment of the result to a reviewer in a separate context. Independent work may run in parallel subagents.
 
 Commit after each step. Commit and push to working branches without asking. Every change reaches the default branch through a PR.
 
-## 1. Intake
+## 1. Receive the request
 
 | The user gives | You do | Start when |
 |---|---|---|
@@ -14,14 +14,14 @@ Commit after each step. Commit and push to working branches without asking. Ever
 
 When unsure which, treat it as the more mature kind and say how you judged. Put the user's words in `discussion.md` verbatim (format: [records.md](records.md)).
 
-## 2. Finish line
+## 2. Confirm the request
 
 - Results, not methods. The user's words bound the scope. First ask what the user wants to happen after this is done; a larger version or better route goes into Decisions as an option, and you work to the original words meanwhile.
 - Every line has external evidence: a test, a command, a measured number, a reproduction from raw data. If only the user can judge it, write `evidence: user judges`.
-- Each evidence item names how it will be proven. A method that creates external resources (repos, services), runs real model calls, or spends the user's usage is listed with its estimated cost and runs only after the user's explicit yes. Until then run only checks that create nothing external and spend no model usage. This is an exception to asking only what cannot be found: ask it in the first question round of Intake (one round, at most 5 questions), not mid-run.
+- Each evidence item names how it will be proven. A method that creates external resources (repos, services), runs real model calls, or spends the user's usage is listed with its estimated cost and runs only after the user's explicit yes. Until then run only checks that create nothing external and spend no model usage. This is an exception to asking only what cannot be found: ask it in the first question round (one round, at most 5 questions), not mid-run.
 - Apply the four questions from [records.md](records.md).
 
-## 3. Repo rules and verify
+## 3. Gather information
 
 Research order: official docs, source code, web search, then a trial run. Record sources. Keep large documents out of the coordinator: a doc lookup or research goes to a subagent that returns only the quoted lines and their source URL or path. If the network or a site is blocked, switch source; if a site is truly needed, tell the user which and why.
 
@@ -34,11 +34,9 @@ Find the repo's verify commands in its `package.json`, CI config, `CLAUDE.md` or
 
 Missing infrastructure that blocks evidence (raw data or logs, version and commit mapping, a reproducible environment) becomes early tickets. Using secrets, money or the user's own data, a need for accounts you do not have, and browser use go to the user first (Boundaries, Ask first).
 
-## 4. Spec and tickets
+## 4. Cut tickets
 
 Write `docs/<topic>/spec.md`, then tickets by [tickets.md](tickets.md). You decide the breakdown and record why in Decisions; do not quiz the user. Each ticket is one verifiable behavior.
-
-## 5. Clarity gate
 
 Anything needing a trade-off, a design choice or a question to the user is settled by you before dispatch, then written into the ticket.
 
@@ -46,7 +44,7 @@ Once per batch, before first dispatch, start a fresh subagent. Give it only the 
 
 Then run every ticket's Verify commands on the unimplemented tree. Those meant to fail must fail for the stated reason. Each command must be correct and finish by itself, leaving no server or process running.
 
-## 6. Dispatch
+## 5. Implement
 
 One subagent per ticket (`subagent_type: agent-flow:implementer`), one worktree each: `git worktree add ../<repo>-<NN> -b <topic>/<NN> <integration branch>`. Message and report format: [tickets.md](tickets.md). After a subagent ends, check for leftover processes (`pgrep -fl`, `lsof` to confirm the owner before killing) and remove its worktree when its PR is merged.
 
@@ -56,12 +54,16 @@ Follow-ups that belong to the finish line become new tickets; anything beyond it
 
 Stuck means: the same problem, including a FAIL on the same finish-line item, survives three different approaches; or the next step needs something only the user can give. Save the work, tell the user with options and a recommendation, and continue unblocked work.
 
-## 7. Check and merge
+## 6. Review
 
-Deterministic checks come first: the verify commands, each finish-line item's evidence, and CI on the PR. Fix failures before any reviewer runs. Then review and audit per [review.md](review.md) and [audit.md](audit.md), and merge only through `land.py`.
+Deterministic checks come first: the verify commands, each finish-line item's evidence, and CI on the PR. Fix failures before any reviewer runs. Then review per [review.md](review.md).
+
+## 7. Audit
+
+Audit per [audit.md](audit.md), then merge only through `land.py`.
 
 Landing is one call: `land.py <pr> [--worktree <dir>] [--repo-root <dir>]` runs the `merge_gate.py` checks, updates the branch and waits for checks when it is behind, merges with a merge commit (`gh pr merge <n> --merge`), and only after `gh pr view --json state` says MERGED removes the worktree and deletes the local and remote branch. Do not poll or clean up by hand. Any failure prints why and touches nothing. Never squash, so `git revert -m 1 <sha>` undoes it. Record each merge and its evidence in the final report. Deploy and publish are outside the flow: ask first.
 
-## 8. Report
+## Report
 
 Close with: finish line items, each with its evidence and result; which checks failed or did not run; what was merged; guesses taken and fallbacks used; number of questions to the user and the reason for each. Format: [grounded-answer.md](grounded-answer.md).
