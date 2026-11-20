@@ -23,26 +23,26 @@
 
 Reviewed by the agency-agents Developer Advocate role (2026-11-19); its rewrites are folded in. Each line names the evidence that proves it from outside the agent.
 
-- C1 installable: on macOS and Ubuntu CI runners with a fresh `HOME`, `claude plugin validate .`, `claude plugin marketplace add`, `claude plugin install agent-flow@agent-flow` exit 0 and `claude plugin list` shows the plugin enabled
-- C2 entry works: `scripts/check_discussion.py` validates the required sections of a `discussion.md` (verbatim words, finish line, authorizations, decisions, open questions/frontier); its unit test passes on this repo's `docs/agent-flow/discussion.md` and fails on a copy missing a section
-- C3 first-party only, licenses clear: `scripts/check_package.py` finds no third-party skill inside the plugin; LICENSE (MIT) and NOTICE exist; files derived from agency-agents carry its MIT notice
+- C1 installable, evidence: on macOS and Ubuntu CI runners with a fresh `HOME`, `claude plugin validate .`, `claude plugin marketplace add`, `claude plugin install agent-flow@agent-flow` exit 0 and `claude plugin list` shows the plugin enabled
+- C2 entry works, evidence: `scripts/check_discussion.py` validates the required sections of a `discussion.md` (verbatim words, finish line, authorizations, decisions, open questions/frontier); its unit test passes on this repo's `docs/agent-flow/discussion.md` and fails on a copy missing a section
+- C3 first-party only, licenses clear, evidence: `scripts/check_package.py` finds no third-party skill inside the plugin; LICENSE (MIT) and NOTICE exist; files derived from agency-agents carry its MIT notice
 - C4 works without companions: evidence: user judges (the user runs the installed plugin with no companion skills on a project of their choice)
-- C5 no personal data: `scripts/check_package.py` finds 0 hits for `/Users/`, email addresses, `rtk`, `ponytail`, `Asia/Taipei`; the GitHub handle appears only in `README.md` and `.claude-plugin/marketplace.json`
-- C6 outer boundaries and autonomy: `SKILL.md` has a Boundaries section that project rules may tighten but never loosen; a unit test greps each line:
+- C5 no personal data, evidence: `scripts/check_package.py` finds 0 hits for `/Users/`, email addresses, `rtk`, `ponytail`, `Asia/Taipei`; the GitHub handle appears only in `README.md` and `.claude-plugin/marketplace.json`
+- C6 outer boundaries and autonomy, evidence: `SKILL.md` has a Boundaries section that project rules may tighten but never loosen; a unit test greps each line:
   (a) do without asking: branch, commit, push, PR, CI, merge, including the CI-setup PR;
   (b) ask first: deploy/publish to users; writes to repos or services the user does not own; anything that notifies other people; using secrets, spending money, deleting or overwriting the user's own data; a verification method that spends usage, runs real model calls or creates external resources (asked upfront with a cost estimate); browser use;
   (c) never: claim done without evidence or report unverified as verified; fabricate projects, data or records as verification; delete or weaken tests, checks, CI, the boundaries or the kill switch to make a gate pass; commit or print secrets;
   (d) kill switch: with `.agent-flow/STOP` present or `merge: never` in `.agent-flow/config`, `merge_gate.py` refuses to merge (unit tests)
 - C16 project rules: `SKILL.md` tells the agent in the calling repo to write that repo's own rules and verify (verify commands, CI, whether E2E is needed, merge conditions on top of `merge_gate.py`'s fixed floor) into its `CLAUDE.md`/`AGENTS.md` or `docs/<topic>/`, inside the boundaries; a unit test greps the instruction; whether the result fits a project: evidence: user judges
-- C7 cross-platform: script tests green on GitHub Actions macOS and Ubuntu; on Ubuntu with bwrap installed the sandbox path really executes (not skipped); a job without any sandbox asserts project-code evidence is `unverified` and that merge is blocked
-- C8 English: CJK character count in the plugin directory (rules, roles, scripts, error messages) is 0; the skill tells the agent to answer in the user's language
-- C9 releasable: tag `v0.1.0`, CHANGELOG, README; a marketplace entry pinned to `ref: v0.1.0` installs and `claude plugin list` shows 0.1.0; `.audit.md` records the same version
+- C7 cross-platform, evidence: script tests green on GitHub Actions macOS and Ubuntu; on Ubuntu with bwrap installed the sandbox path really executes (not skipped); a job without any sandbox asserts project-code evidence is `unverified` and that merge is blocked
+- C8 English, evidence: CJK character count in the plugin directory (rules, roles, scripts, error messages) is 0; the skill tells the agent to answer in the user's language
+- C9 releasable, evidence: tag `v0.1.0`, CHANGELOG, README; a marketplace entry pinned to `ref: v0.1.0` installs and `claude plugin list` shows 0.1.0; `.audit.md` records the same version
 - C10 dogfooded: evidence: user judges (the user runs one ticket end to end on a project of their choice)
 - C11 time to first success: evidence: user judges (the user follows README Quick Start in a fresh `HOME` and reaches a merged PR)
-- C12 preflight: `agent-flow doctor` (script) reports each missing piece with its fix and a non-zero exit: git, gh, gh login, push access, Python 3.11+, claude CLI, sandbox availability, branch-protection availability (public or paid plan), HTTPS remote without `workflow` scope; one unit test per check
-- C13 resumable: `references/tickets.md` requires the `<!-- agent-flow:<topic>#<NN> -->` marker and a search for it before creating an issue or PR (a unit test greps the rule)
-- C14 cost shown: `review.py` prints tokens and $ (from `claude -p --output-format json`; unit test on a recorded JSON); the skill tells interactive users to check `/cost` (an interactive session cannot read its own usage)
-- C15 no model calls on the user's machine for canaries: canaries run by the maintainer before tagging; the stamp ships with the version; a test asserts `audit.py` does not invoke `claude` on the deterministic path
+- C12 preflight, evidence: `agent-flow doctor` (script) reports each missing piece with its fix and a non-zero exit: git, gh, gh login, push access, Python 3.11+, claude CLI, sandbox availability, branch-protection availability (public or paid plan), HTTPS remote without `workflow` scope; one unit test per check
+- C13 resumable, evidence: `references/tickets.md` requires the `<!-- agent-flow:<topic>#<NN> -->` marker and a search for it before creating an issue or PR (a unit test greps the rule)
+- C14 cost shown, evidence: `review.py` prints tokens and $ (from `claude -p --output-format json`; unit test on a recorded JSON); the skill tells interactive users to check `/cost` (an interactive session cannot read its own usage)
+- C15 no model calls on the user's machine for canaries, evidence: canaries run by the maintainer before tagging; the stamp ships with the version; a test asserts `audit.py` does not invoke `claude` on the deterministic path
 
 Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Windows (WSL2 documented); retro and method log; agency-agents / grilling integration; upgrade migration (README: old `.audit.md` stay bound to their version); uninstall beyond a README section.
 
@@ -81,7 +81,7 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 
 ## Open questions
 
-- Next PR (shipped rules): add the Boundaries section to `SKILL.md` (C6), move the warn tier to ask first in `SKILL.md` and `references/workflow.md`, add the project-rules instruction (C16), with rule-grep tests for C6, C13, C16. Restore `scripts/check_discussion.py` (+ test, lost with PR #27) for C2.
+- Shipped rules for C2, C6, C13, C16 landed with tests (`tests/test_check_discussion.py`, `tests/test_rules.py`); the PR #27 `WARNING:`-in-reply rule is moot now that the warn tier is gone.
 - `agent-flow-fixture` repo still exists: deleting needs `gh auth refresh -h github.com -s delete_repo` (user's action), then `gh repo delete Rayyyyyyyyyyyyyyyyyyyy/agent-flow-fixture --yes`.
 - Canaries: they guard `audit.py` (a method tool) but run here and ship trap reports to every user; keep, move out of the plugin dir, or drop? Ask.
 - Next after those: one opus review + audit over v0.1, then #13 release (README, CHANGELOG, 0.1.0, re-run canaries for the new version, tag, pinned install).
