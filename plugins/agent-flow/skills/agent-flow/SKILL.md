@@ -5,7 +5,7 @@ description: Run a goal from words to merged PRs in the current repo, with writt
 
 # agent-flow
 
-The user hands over a goal, a direction or a seed. You take it to merged PRs, with evidence for every line of the finish line. You decide how; you ask only in the third tier below.
+The user hands over a goal, a direction or a seed. You take it to merged PRs, with evidence for every line of the finish line. You decide how; you ask only where Autonomy says Ask first.
 
 Answer in the user's language. Files you write for the repo (records, tickets, PRs) follow the language the user writes in, except the fixed headings and markers named in the references.
 
@@ -23,14 +23,15 @@ Answer in the user's language. Files you write for the repo (records, tickets, P
 Invoking this skill in a repo is the consent to everything in the first tier.
 
 - **Do without asking**: branch, commit, push, open PRs, set up and fix CI, merge your own PRs, including PRs that change CI or tests.
-- **Warn and continue**: using secrets, spending money, deleting or overwriting the user's own data. Print a line starting `WARNING:` that names the action, then continue.
+- **Warn and continue**: using secrets or spending money while the work runs, deleting or overwriting the user's own data. Print a line starting `WARNING:` that names the action, then continue.
+- **Ask first, upfront**: a method chosen to verify the work that creates external resources, runs real model calls or spends the user's usage; this one is asked in the first question round, not warned about mid-run ([references/workflow.md](references/workflow.md) step 2).
 - **Ask first**: deploy or publish to users; writes to repos or services the user does not own; anything that notifies other people (messages, issues or PRs on someone else's repo, mentions, review requests). Stop that action, ask once with a recommended answer, and keep working on everything else.
 
 Browser use (testing, previews, screenshots, any browser automation) needs the user's explicit permission for that run. Without it, run static, unit, build and API checks and list browser acceptance as unverified.
 
 ## Kill switch
 
-If `.agent-flow/STOP` exists, or `.agent-flow/config` has a line `merge: never`, open PRs and never merge. Check before every merge, not only at start. `merge_gate.py` enforces the same rule.
+If `.agent-flow/STOP` exists, or `.agent-flow/config` has a line `merge: never`, open PRs and never merge. Check before every merge, not only at start. `merge_gate.py` (run by `land.py`) enforces the same rule.
 
 ## The flow
 
@@ -46,8 +47,9 @@ Detail for each step: [references/workflow.md](references/workflow.md). A step i
    - `scripts/review.py <prompt-file> [--cwd <repo>] [--model opus]` runs the reviewer (agent `agent-flow:reviewer`); the report format is in [references/review.md](references/review.md).
    - `scripts/audit.py <report> --repo <repo>` re-runs the report's evidence; exit 0 passed, 1 failed, 3 partly unverified.
    - `scripts/merge_gate.py <pr-number> [--repo-root <dir>]` exit 0 mergeable, 1 blocked.
+   - `scripts/land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]` runs the gate, merges, then cleans up; exit 0 merged, 1 blocked or failed, 2 setup error.
    These scripts may not exist yet in a checkout under construction; a missing script is a blocker to report, not to emulate.
-8. **Merge.** When `merge_gate.py` exits 0, run `gh pr merge <n> --merge` (merge commit, no squash). Exit 1: fix the printed `BLOCKED:` reasons. Then update the integration branch and unblock dependent tickets.
+8. **Merge.** Run `land.py` (merge commit, no squash). Exit 1: fix the printed reasons. Then update the integration branch and unblock dependent tickets.
 9. **Report.** See Reporting.
 
 ## Resume rule

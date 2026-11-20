@@ -33,7 +33,7 @@ Canaries (trap reports the auditor must reject) are run by the maintainer before
 
 ## Merge gate
 
-Merge only when `merge_gate.py <pr-number>` exits 0:
+Merge only through `land.py`, which runs `merge_gate.py <pr-number>` and needs exit 0:
 
 - CI is green;
 - the highest-round `.audit.md` among the PR's changed files ends `Result: passed`;
