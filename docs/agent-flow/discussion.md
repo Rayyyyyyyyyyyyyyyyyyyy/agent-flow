@@ -33,7 +33,7 @@ Reviewed by the agency-agents Developer Advocate role (2026-11-19); its rewrites
   (b) ask first: deploy/publish to users; writes to repos or services the user does not own; anything that notifies other people; using secrets, spending money, deleting or overwriting the user's own data; a verification method that spends usage, runs real model calls or creates external resources (asked upfront with a cost estimate); browser use;
   (c) never: claim done without evidence or report unverified as verified; fabricate projects, data or records as verification; delete or weaken tests, checks, CI, the boundaries or the kill switch to make a gate pass; commit or print secrets;
   (d) kill switch: with `.agent-flow/STOP` present or `merge: never` in `.agent-flow/config`, `merge_gate.py` refuses to merge (unit tests)
-- C16 project rules: `SKILL.md` tells the agent in the calling repo to write that repo's own rules and verify (verify commands, CI, whether E2E is needed, merge conditions) into its `CLAUDE.md`/`AGENTS.md` or `docs/<topic>/`, inside the boundaries; a unit test greps the instruction; whether the result fits a project: evidence: user judges
+\1merge conditions on top of `merge_gate.py`'s fixed floor) into its `CLAUDE.md`/`AGENTS.md` or `docs/<topic>/`, inside the boundaries; a unit test greps the instruction; whether the result fits a project: evidence: user judges
 - C7 cross-platform: script tests green on GitHub Actions macOS and Ubuntu; on Ubuntu with bwrap installed the sandbox path really executes (not skipped); a job without any sandbox asserts project-code evidence is `unverified` and that merge is blocked
 - C8 English: CJK character count in the plugin directory (rules, roles, scripts, error messages) is 0; the skill tells the agent to answer in the user's language
 - C9 releasable: tag `v0.1.0`, CHANGELOG, README; a marketplace entry pinned to `ref: v0.1.0` installs and `claude plugin list` shows 0.1.0; `.audit.md` records the same version
@@ -76,6 +76,8 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 - 2026-11-20 user (「執行的是呼叫plugin的repo 不是這裡啊」「是要告訴呼叫plugin的repo裡的agent 去寫適用他自己的rule and verify」「要寫出界線底線不能跨越的最外層界線」): the plugin ships the outer boundaries plus the method; the agent in the calling repo writes that repo's own rules and verify inside them (C16). Nothing of the flow is executed here.
 - 2026-11-20 user (「9 對」「2 警告改成用問」): the 9 boundaries in C6 stand; secrets, money and deleting or overwriting the user's own data move from warn-and-continue to ask first. Replaces the 2026-11-19 「要警告」 decision.
 - 2026-11-20 user (「py 工具是這套方法的執行方式 也就是原本skill-workflow做的事情」): the scripts (review, audit, merge_gate, land, doctor, sandbox) stay; they are how the method runs in the calling repo.
+
+- 2026-11-20 user (「對，merge 條件照你建議」): flow order confirmed: 0 doctor + kill switch + print the boundaries, 1 intake, 2 finish line, 3 (new) write the project's rules and verify, 4 spec and tickets, 5 clarity gate, 6 dispatch, 7 check (CI, review.py, audit.py), 8 land.py, 9 report. `merge_gate.py`'s conditions (CI green, audit passed, no kill switch) are a boundary; project rules may add merge conditions, never remove one.
 
 ## Open questions
 
