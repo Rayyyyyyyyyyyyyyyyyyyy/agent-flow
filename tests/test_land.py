@@ -22,7 +22,7 @@ def git(cwd, *args):
 
 
 class LandTest(unittest.TestCase):
-    def land(self, refuse_merge=False, behind=False, audit="Result: passed", stop=False, silent_merge=False):
+    def land(self, refuse_merge=False, behind=False, audit="Result: passed", stop=False, silent_merge=False, root_is_wt=False):
         """Real git repo + bare origin + worktree on branch t/01; fake gh. Returns (code, out, env)."""
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp)
@@ -38,6 +38,11 @@ class LandTest(unittest.TestCase):
         git(wt, "push", "origin", "t/01")
         (root / AUDIT).parent.mkdir(parents=True)
         (root / AUDIT).write_text("# Audit\n" + audit + "\n")
+        if root_is_wt:
+            (wt / AUDIT).parent.mkdir(parents=True)
+            (wt / AUDIT).write_text("# Audit\n" + audit + "\n")
+            git(wt, "add", AUDIT)
+            git(wt, "commit", "-m", "audit")
         if stop:
             (root / ".agent-flow").mkdir()
             (root / ".agent-flow/STOP").write_text("")
@@ -57,7 +62,7 @@ class LandTest(unittest.TestCase):
         out = io.StringIO()
         env = {"PATH": str(bindir) + os.pathsep + os.environ["PATH"]}
         with mock.patch.dict(os.environ, env), contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
-            code = land.main(["7", "--worktree", str(wt), "--repo-root", str(root)])
+            code = land.main(["7", "--worktree", str(wt), "--repo-root", str(wt if root_is_wt else root)])
         self.root, self.wt, self.origin = root, wt, origin
         self.log = log.read_text() if log.exists() else ""
         return code, out.getvalue()
@@ -69,6 +74,12 @@ class LandTest(unittest.TestCase):
     def test_merged_then_cleaned(self):
         code, _ = self.land()
         self.assertEqual(code, 0)
+        self.assertFalse(self.wt.exists())
+        self.assertEqual(self.branches(), ("", ""))
+
+    def test_repo_root_is_the_removed_worktree(self):
+        code, out = self.land(root_is_wt=True)
+        self.assertEqual(code, 0, out)
         self.assertFalse(self.wt.exists())
         self.assertEqual(self.branches(), ("", ""))
 

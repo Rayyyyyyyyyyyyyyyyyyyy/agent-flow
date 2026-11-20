@@ -12,7 +12,10 @@ import merge_gate
 
 
 def run(cmd, cwd):
-    p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    try:
+        p = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True)
+    except OSError as e:
+        return 127, str(e)
     return p.returncode, (p.stdout + p.stderr).strip()
 
 
@@ -62,10 +65,15 @@ def main(argv=None):
     if state != "MERGED":
         return fail(f"merge not confirmed (state {state}); worktree and branches left in place")
     branch = info["headRefName"]
+    # --repo-root may be the worktree being removed, so clean up from the main checkout
+    rc, common = run(["git", "rev-parse", "--path-format=absolute", "--git-common-dir"], root)
+    if rc:
+        return fail("merged, but could not locate the main checkout: " + common)
+    main_dir = str(Path(common).parent)
     steps = ([["git", "worktree", "remove", a.worktree]] if a.worktree else []) + [
         ["git", "branch", "-D", branch], ["git", "push", "origin", "--delete", branch]]
     for cmd in steps:
-        rc, out = run(cmd, root)
+        rc, out = run(cmd, main_dir)
         if rc:
             return fail("merged, but cleanup stopped at `" + " ".join(cmd) + "`: " + out)
     return 0
