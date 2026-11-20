@@ -37,14 +37,14 @@ A developer who uses Claude Code can get code written, but not a finished, check
 - Merge gate: a script decides mergeability: CI green (via `gh`), latest audit passed with no `unverified`, no `.agent-flow/STOP`, `merge` not `never` in `.agent-flow/config`. Branch protection is set when the plan allows; otherwise the gate script is the only guard and doctor says so.
 - Audit: evidence kinds are file position (read directly), read-only commands from an argv allowlist (run with `shell=False`), and project commands (run only inside a sandbox: macOS Seatbelt, Linux bwrap, one module). Without a sandbox, project commands are `unverified`. Rules come from the installed plugin version, recorded in `.audit.md`. No `claude` call on the deterministic path.
 - Canaries: maintainer-only script, run before tagging; stamp ships in the plugin.
-- Cost: `review.py` and the E2E harness print tokens and $; interactive users use `/cost`.
+- Cost: `review.py` prints tokens and $; interactive users use `/cost`.
 - v0.1 ships two roles: implementer and reviewer.
 
 ## Testing Decisions
 
 - Unit tests (`python3 -m unittest`) for every script: package checks, discussion checker, doctor checks, audit evidence parsing / allowlist / three states / sandbox detection, merge gate, review/audit version anchor.
 - CI matrix macOS + Ubuntu; one Ubuntu job installs bwrap and must execute the sandbox path; one job without sandbox asserts `unverified` and a blocked merge.
-- End-to-end runs use `claude -p` locally (they cost the maintainer's usage) against a public fixture repo; transcripts and numbers are committed under `docs/agent-flow/e2e/`.
+- No end-to-end harness: E2E is a per-project choice (2026-11-20). Criteria a script cannot check are `evidence: user judges`.
 - Prior art: skill-workflow `tests/` (portability, review, audit tests).
 
 ## Out of Scope

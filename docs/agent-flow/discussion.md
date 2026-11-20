@@ -24,23 +24,23 @@
 Reviewed by the agency-agents Developer Advocate role (2026-11-19); its rewrites are folded in. Each line names the evidence that proves it from outside the agent.
 
 - C1 installable: on macOS and Ubuntu CI runners with a fresh `HOME`, `claude plugin validate .`, `claude plugin marketplace add`, `claude plugin install agent-flow@agent-flow` exit 0 and `claude plugin list` shows the plugin enabled
-- C2 entry works: fixed fixture repo + fixed prompt, `claude -p` run 3 times (locally, fresh `HOME`); all 3 produce `docs/<topic>/discussion.md` that passes `scripts/check_discussion.py` (required sections: verbatim words, finish line, authorizations, decisions, open questions/frontier)
+- C2 entry works: `scripts/check_discussion.py` validates the required sections of a `discussion.md` (verbatim words, finish line, authorizations, decisions, open questions/frontier); its unit test passes on this repo's `docs/agent-flow/discussion.md` and fails on a copy missing a section
 - C3 first-party only, licenses clear: `scripts/check_package.py` finds no third-party skill inside the plugin; LICENSE (MIT) and NOTICE exist; files derived from agency-agents carry its MIT notice
-- C4 works without companions: the C10 end-to-end run happens in a fresh `HOME` with only this plugin installed (no companion skills); the transcript lists the fallbacks taken
+- C4 works without companions: evidence: user judges (the user runs the installed plugin with no companion skills on a project of their choice)
 - C5 no personal data: `scripts/check_package.py` finds 0 hits for `/Users/`, email addresses, `rtk`, `ponytail`, `Asia/Taipei`; the GitHub handle appears only in `README.md` and `.claude-plugin/marketplace.json`
-- C6 autonomy with three tiers, all in the shipped rules and tested on fixtures:
-  (a) default: branch, commit, push, PR, CI, merge without asking; fixture run from invocation to a merged PR asks the user 0 times, including the CI-setup PR;
-  (b) warn and continue: using secrets, spending money, deleting or overwriting the user's own data print a warning line (`WARNING:`) in the transcript and the run continues;
-  (c) ask first: deploy/publish to users, writes to repos or services the user does not own, messages/issues/PRs that notify other people; one fixture per case stops with 0 external writes (checked with `gh api`);
-  (d) kill switch: with `.agent-flow/STOP` present or `merge: never` in `.agent-flow/config`, the run opens PRs but merges 0
+- C6 autonomy with three tiers, all in the shipped rules (a unit test greps `SKILL.md` for each tier's rule):
+  (a) default: branch, commit, push, PR, CI, merge without asking, including the CI-setup PR;
+  (b) warn and continue: using secrets, spending money, deleting or overwriting the user's own data print a warning line (`WARNING:`) in the reply and the run continues;
+  (c) ask first: deploy/publish to users, writes to repos or services the user does not own, messages/issues/PRs that notify other people;
+  (d) kill switch: with `.agent-flow/STOP` present or `merge: never` in `.agent-flow/config`, `merge_gate.py` refuses to merge (unit tests)
 - C7 cross-platform: script tests green on GitHub Actions macOS and Ubuntu; on Ubuntu with bwrap installed the sandbox path really executes (not skipped); a job without any sandbox asserts project-code evidence is `unverified` and that merge is blocked
 - C8 English: CJK character count in the plugin directory (rules, roles, scripts, error messages) is 0; the skill tells the agent to answer in the user's language
 - C9 releasable: tag `v0.1.0`, CHANGELOG, README; a marketplace entry pinned to `ref: v0.1.0` installs and `claude plugin list` shows 0.1.0; `.audit.md` records the same version
-- C10 dogfooded in public: in a public fixture repo, one ticket goes end to end: its acceptance test is red before implementation (CI log), then PR, review report and `.audit.md` are public; a CI job in the fixture repo re-runs `audit.py` from a clean clone of the tagged plugin and reaches the same verdict
-- C11 time to first success: following README Quick Start verbatim in a fresh `HOME` and a fresh clone of the fixture repo reaches the first merged PR; the transcript and the measured minutes go in README (target <= 20 min excluding CI wait; the target is a guess)
+- C10 dogfooded: evidence: user judges (the user runs one ticket end to end on a project of their choice)
+- C11 time to first success: evidence: user judges (the user follows README Quick Start in a fresh `HOME` and reaches a merged PR)
 - C12 preflight: `agent-flow doctor` (script) reports each missing piece with its fix and a non-zero exit: git, gh, gh login, push access, Python 3.11+, claude CLI, sandbox availability, branch-protection availability (public or paid plan), HTTPS remote without `workflow` scope; one unit test per check
-- C13 resumable: killing a run after the PR is opened and invoking again leaves exactly one issue and one PR for that ticket (`gh issue list` / `gh pr list` counts)
-- C14 cost shown: `review.py` and the E2E harness print tokens and $ (from `claude -p --output-format json`); the skill tells interactive users to check `/cost` (an interactive session cannot read its own usage); README states the C10 measured numbers, which match the harness output
+- C13 resumable: `references/tickets.md` requires the `<!-- agent-flow:<topic>#<NN> -->` marker and a search for it before creating an issue or PR (a unit test greps the rule)
+- C14 cost shown: `review.py` prints tokens and $ (from `claude -p --output-format json`; unit test on a recorded JSON); the skill tells interactive users to check `/cost` (an interactive session cannot read its own usage)
 - C15 no model calls on the user's machine for canaries: canaries run by the maintainer before tagging; the stamp ships with the version; a test asserts `audit.py` does not invoke `claude` on the deterministic path
 
 Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Windows (WSL2 documented); retro and method log; agency-agents / grilling integration; upgrade migration (README: old `.audit.md` stay bound to their version); uninstall beyond a README section.
@@ -70,10 +70,11 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 - 2026-11-20 user (「阿你沒問我就開了個假專案做事」「有病嗎？我有說是這樣的驗證方式嗎」「虛構的都刪掉」): the fixture-repo E2E was never agreed. PR #27 closed, fixture repo to be deleted. Verification methods that create external resources or spend usage need the user's explicit yes (rule in references/workflow.md step 2).
 - 2026-11-20 user (「檢討 token都花在哪裡」「明文訂好」): session phases, docs via subagent, land.py, verification agreed upfront (PR #28, review round 2 + audit passed; land.py fix PR #29).
 
+- 2026-11-20 user (「e2e是要by project 去跑的」「而且不是每個project都需要e2e」「C4 C10 C11 改成 user judges」): E2E is a per-project choice, not a default; agent-flow itself does not run one. C2, C6, C13, C14 are proven by unit tests and rule greps; C4, C10, C11 by user judgment. Issue #12 closed.
+
 ## Open questions
 
-- C2, C4, C6, C10, C11, C13 have no agreed verification method; ask the user (with cost estimates) before any E2E. Issue #12 stays open until then.
-- Lost with PR #27 and not yet re-landed: `scripts/check_discussion.py` (+ test) and the SKILL.md rule that the `WARNING:` line must appear in the reply text, not only in a file. Ask the user whether to restore them.
+- Tests for the new evidence: restore `scripts/check_discussion.py` (+ test, lost with PR #27) for C2; rule-grep tests for C6a-c and C13 (C14 is covered by `tests/test_review.py`). Also restore the SKILL.md rule that the `WARNING:` line appears in the reply text.
 - `agent-flow-fixture` repo still exists: deleting needs `gh auth refresh -h github.com -s delete_repo` (user's action), then `gh repo delete Rayyyyyyyyyyyyyyyyyyyy/agent-flow-fixture --yes`.
 - Unclear whether `plugins/agent-flow/auditor/canaries/` counts as "fictional" (user said 「虛構的都刪掉」); ask.
 - Next after those: one opus review + audit over v0.1, then #13 release (README, CHANGELOG, 0.1.0, re-run canaries for the new version, tag, pinned install).
