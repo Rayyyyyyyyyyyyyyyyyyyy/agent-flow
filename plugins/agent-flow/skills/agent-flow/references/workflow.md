@@ -18,11 +18,12 @@ When unsure which, treat it as the more mature kind and say how you judged. Put 
 
 - Results, not methods. The user's words bound the scope. First ask what the user wants to happen after this is done; a larger version or better route goes into Decisions as an option, and you work to the original words meanwhile.
 - Every line has external evidence: a test, a command, a measured number, a reproduction from raw data. If only the user can judge it, write `evidence: user judges`.
+- Each evidence item names how it will be proven. A method that creates external resources (repos, services), runs real model calls, or spends the user's usage is listed with its estimated cost and runs only after the user's explicit yes. Until then run only checks that create nothing external and spend no model usage. This is the one exception to the no-questions default: ask it in the single upfront question round, not mid-run.
 - Apply the four questions from [records.md](records.md).
 
 ## 3. Research and CI first
 
-Research order: official docs, source code, web search, then a trial run. Record sources. If the network or a site is blocked, switch source; if a site is truly needed, tell the user which and why.
+Research order: official docs, source code, web search, then a trial run. Record sources. Keep large documents out of the coordinator: a doc lookup or research goes to a subagent that returns only the quoted lines and their source URL or path. If the network or a site is blocked, switch source; if a site is truly needed, tell the user which and why.
 
 Find the repo's verify commands in its `package.json`, CI config, `CLAUDE.md` or `AGENTS.md`. Record them. If PRs have no CI running them, adding CI is ticket 01: CI runs only the verify commands, with no deploy and no secrets. If the default branch has no rule requiring a PR and green CI, set it when the plan allows (`gh api` branch protection); if not allowed, say so in Decisions, and `merge_gate.py` is the guard.
 
@@ -44,15 +45,17 @@ Then run every ticket's Verify commands on the unimplemented tree. Those meant t
 
 One subagent per ticket (`subagent_type: agent-flow:implementer`), one worktree each: `git worktree add ../<repo>-<NN> -b <topic>/<NN> <integration branch>`. Message and report format: [tickets.md](tickets.md). After a subagent ends, check for leftover processes (`pgrep -fl`, `lsof` to confirm the owner before killing) and remove its worktree when its PR is merged.
 
+Session phases: once the finish line and tickets are agreed, tell the user to start implementation in a fresh session and give the exact line to type: `Run agent-flow: resume from docs/<topic>/discussion.md and the open issues.` The long design conversation is not carried into ticket coordination. A coordinating session that has handled many tickets suggests a fresh session the same way instead of continuing.
+
 Follow-ups that belong to the finish line become new tickets; anything beyond it goes into Decisions as a question.
 
 Stuck means: the same problem, including a FAIL on the same finish-line item, survives three different approaches; or the next step needs something only the user can give. Save the work, tell the user with options and a recommendation, and continue unblocked work.
 
 ## 7. Check and merge
 
-Deterministic checks come first: the verify commands, each finish-line item's evidence, and CI on the PR. Fix failures before any reviewer runs. Then review and audit per [review.md](review.md) and [audit.md](audit.md), and merge only through `merge_gate.py`.
+Deterministic checks come first: the verify commands, each finish-line item's evidence, and CI on the PR. Fix failures before any reviewer runs. Then review and audit per [review.md](review.md) and [audit.md](audit.md), and merge only through `land.py`.
 
-Merge with a merge commit (`gh pr merge <n> --merge`), never squash, so `git revert -m 1 <sha>` undoes it. Record each merge and its evidence in the final report. Deploy and publish are outside the flow: ask first.
+Landing is one call: `land.py <pr> [--worktree <dir>] [--repo-root <dir>]` runs the `merge_gate.py` checks, updates the branch and waits for checks when it is behind, merges with a merge commit (`gh pr merge <n> --merge`), and only after `gh pr view --json state` says MERGED removes the worktree and deletes the local and remote branch. Do not poll or clean up by hand. Any failure prints why and touches nothing. Never squash, so `git revert -m 1 <sha>` undoes it. Record each merge and its evidence in the final report. Deploy and publish are outside the flow: ask first.
 
 ## 8. Report
 

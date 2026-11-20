@@ -80,6 +80,11 @@ Output contains: `<text>`
 - Audit: among files changed in the PR (`gh pr diff <n> --name-only`) matching `docs/*/reviews/review-*.audit.md`, take the highest round; its last line must be `Result: passed`.
 - Kill switch: read from `--repo-root` (default cwd): `.agent-flow/STOP` exists, or `.agent-flow/config` has a line `merge: never`.
 
+## land.py
+
+- CLI: `land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]`; imports `merge_gate.main`, so its BLOCKED lines and exit codes pass through. Exit 0 merged, 1 blocked or failed, 2 setup error.
+- Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, run `gh pr update-branch <n>` and `gh pr checks <n> --watch`; run the gate; `gh pr merge <n> --merge`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>`. Any earlier failure prints why and changes nothing.
+
 ## review.py
 
 - CLI: `review.py <prompt-file> [--cwd <repo>] [--model opus]`; prints the reviewer's final text, then one line `[review tokens: <last-context tokens>; cost $<total_cost_usd with 2 decimals>]`.
