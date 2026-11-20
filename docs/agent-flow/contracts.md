@@ -83,7 +83,7 @@ Output contains: `<text>`
 ## land.py
 
 - CLI: `land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]`; imports `merge_gate.main`, so its BLOCKED lines and exit codes pass through. Exit 0 merged, 1 blocked or failed, 2 setup error.
-- Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, run `gh pr update-branch <n>` and `gh pr checks <n> --watch`; run the gate; `gh pr merge <n> --merge`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>`. Any earlier failure prints why and changes nothing.
+- Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, first run the gate's non-CI checks (audit, kill switch; blocked means no remote write), then `gh pr update-branch <n>` and `gh pr checks <n> --watch`; run the full gate; `gh pr merge <n> --merge --match-head-commit <headRefOid>`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>`. Any earlier failure prints why and changes nothing.
 
 ## review.py
 

@@ -22,7 +22,7 @@ def git(cwd, *args):
 
 
 class LandTest(unittest.TestCase):
-    def land(self, refuse_merge=False, behind=False, audit="Result: passed"):
+    def land(self, refuse_merge=False, behind=False, audit="Result: passed", stop=False, silent_merge=False):
         """Real git repo + bare origin + worktree on branch t/01; fake gh. Returns (code, out, env)."""
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp)
@@ -38,6 +38,9 @@ class LandTest(unittest.TestCase):
         git(wt, "push", "origin", "t/01")
         (root / AUDIT).parent.mkdir(parents=True)
         (root / AUDIT).write_text("# Audit\n" + audit + "\n")
+        if stop:
+            (root / ".agent-flow").mkdir()
+            (root / ".agent-flow/STOP").write_text("")
         bindir.mkdir()
         log, merged = tmp / "gh.log", tmp / "merged"
         (bindir / "gh").write_text(
@@ -45,10 +48,11 @@ class LandTest(unittest.TestCase):
             "\"pr view 7 --json headRefName,mergeStateStatus\") echo '{\"headRefName\":\"t/01\",\"mergeStateStatus\":\"%s\"}';;\n"
             "\"pr checks 7 --json name,state,bucket\") echo '%s';;\n"
             "\"pr diff 7 --name-only\") echo '%s';;\n"
-            "\"pr merge 7 --merge\") %s;;\n"
+            "\"pr view 7 --json headRefOid\") echo '{\"headRefOid\":\"abc123\"}';;\n"
+            "\"pr merge 7 --merge --match-head-commit abc123\") %s;;\n"
             "\"pr view 7 --json state\") if [ -f %s ]; then echo '{\"state\":\"MERGED\"}'; else echo '{\"state\":\"OPEN\"}'; fi;;\n"
             "esac\n" % (log, "BEHIND" if behind else "CLEAN", json.dumps(GREEN), AUDIT,
-                        "echo refused >&2; exit 1" if refuse_merge else "touch " + str(merged), merged))
+                        "echo refused >&2; exit 1" if refuse_merge else "true" if silent_merge else "touch " + str(merged), merged))
         (bindir / "gh").chmod(0o755)
         out = io.StringIO()
         env = {"PATH": str(bindir) + os.pathsep + os.environ["PATH"]}
@@ -86,7 +90,20 @@ class LandTest(unittest.TestCase):
         code, _ = self.land(behind=True)
         self.assertEqual(code, 0)
         self.assertLess(self.log.index("pr update-branch 7"), self.log.index("pr checks 7 --watch"))
-        self.assertLess(self.log.index("pr checks 7 --watch"), self.log.index("pr merge 7 --merge"))
+        self.assertLess(self.log.index("pr checks 7 --watch"), self.log.index("pr merge 7 --merge --match-head-commit abc123"))
+
+    def test_stop_file_blocks_before_update_branch(self):
+        code, _ = self.land(behind=True, stop=True)
+        self.assertEqual(code, 1)
+        self.assertNotIn("update-branch", self.log)
+        self.assertNotIn("pr merge", self.log)
+
+    def test_merge_ok_but_not_merged_deletes_nothing(self):
+        code, out = self.land(silent_merge=True)
+        self.assertEqual(code, 1)
+        self.assertIn("FAILED:", out)
+        self.assertTrue(self.wt.exists())
+        self.assertTrue(all(self.branches()))
 
     def test_setup_error_without_gh(self):
         with mock.patch.dict(os.environ, {"PATH": ""}), contextlib.redirect_stderr(io.StringIO()):

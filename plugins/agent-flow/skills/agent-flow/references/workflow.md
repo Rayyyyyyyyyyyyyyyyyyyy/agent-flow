@@ -18,7 +18,7 @@ When unsure which, treat it as the more mature kind and say how you judged. Put 
 
 - Results, not methods. The user's words bound the scope. First ask what the user wants to happen after this is done; a larger version or better route goes into Decisions as an option, and you work to the original words meanwhile.
 - Every line has external evidence: a test, a command, a measured number, a reproduction from raw data. If only the user can judge it, write `evidence: user judges`.
-- Each evidence item names how it will be proven. A method that creates external resources (repos, services), runs real model calls, or spends the user's usage is listed with its estimated cost and runs only after the user's explicit yes. Until then run only checks that create nothing external and spend no model usage. This is the one exception to the no-questions default: ask it in the single upfront question round, not mid-run.
+- Each evidence item names how it will be proven. A method that creates external resources (repos, services), runs real model calls, or spends the user's usage is listed with its estimated cost and runs only after the user's explicit yes. Until then run only checks that create nothing external and spend no model usage. This is an exception to asking only what cannot be found: ask it in the first question round of Intake (one round, at most 5 questions), not mid-run.
 - Apply the four questions from [records.md](records.md).
 
 ## 3. Research and CI first

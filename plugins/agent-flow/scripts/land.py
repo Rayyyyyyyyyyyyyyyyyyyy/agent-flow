@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Land a PR in one call: merge gate, update if behind, merge commit, then clean up. Exit 0 merged, 1 blocked or failed, 2 setup error."""
 import argparse
+import contextlib
+import io
 import json
 import subprocess
 import sys
@@ -32,6 +34,13 @@ def main(argv=None):
         print("setup error: gh pr view gave no JSON (is gh installed?)", file=sys.stderr)
         return 2
     if info["mergeStateStatus"] == "BEHIND":
+        out = io.StringIO()  # CI may still be running; every other BLOCKED reason stops before any remote write
+        with contextlib.redirect_stdout(out):
+            rc = merge_gate.main([a.pr, "--repo-root", root])
+        fatal = [l for l in out.getvalue().splitlines() if not l.startswith("BLOCKED: CI")]
+        if rc == 2 or (rc and fatal):
+            print("\n".join(fatal))
+            return rc
         rc, out = run(["gh", "pr", "update-branch", a.pr], root)
         if rc:
             return fail("update-branch: " + out)
@@ -39,10 +48,17 @@ def main(argv=None):
     rc = merge_gate.main([a.pr, "--repo-root", root])
     if rc:
         return rc
-    rc, out = run(["gh", "pr", "merge", a.pr, "--merge"], root)
+    try:
+        sha = json.loads(run(["gh", "pr", "view", a.pr, "--json", "headRefOid"], root)[1])["headRefOid"]
+    except (json.JSONDecodeError, KeyError):
+        return fail("could not read the PR head commit")
+    rc, out = run(["gh", "pr", "merge", a.pr, "--merge", "--match-head-commit", sha], root)
     if rc:
         return fail("merge: " + out)
-    state = json.loads(run(["gh", "pr", "view", a.pr, "--json", "state"], root)[1])["state"]
+    try:
+        state = json.loads(run(["gh", "pr", "view", a.pr, "--json", "state"], root)[1])["state"]
+    except (json.JSONDecodeError, KeyError):
+        return fail("merge returned 0 but the PR state is unreadable; worktree and branches left in place")
     if state != "MERGED":
         return fail(f"merge not confirmed (state {state}); worktree and branches left in place")
     branch = info["headRefName"]
