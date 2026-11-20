@@ -78,10 +78,11 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 - 2026-11-20 user (「py 工具是這套方法的執行方式 也就是原本skill-workflow做的事情」): the scripts (review, audit, merge_gate, land, doctor, sandbox) stay; they are how the method runs in the calling repo.
 
 - 2026-11-20 user (「對，merge 條件照你建議」): flow order confirmed: 0 doctor + kill switch + print the boundaries, 1 intake, 2 finish line, 3 (new) write the project's rules and verify, 4 spec and tickets, 5 clarity gate, 6 dispatch, 7 check (CI, review.py, audit.py), 8 land.py, 9 report. `merge_gate.py`'s conditions (CI green, audit passed, no kill switch) are a boundary; project rules may add merge conditions, never remove one.
+- 2026-11-20 user (「為什麼要跑 review.py 加 audit.py」「以後不跑 review/audit，記下來」): this repo's own PRs no longer run `review.py`/`audit.py` or merge through `land.py`; those tools run in the calling repo. A PR here merges on green CI (tests, `no_cjk.py`, `check_package.py`, plugin validate) with `gh pr merge --merge`; whether the rule text is right is the user's judgment.
 
 ## Open questions
 
 - Shipped rules for C2, C6, C13, C16 landed with tests (`tests/test_check_discussion.py`, `tests/test_rules.py`); the PR #27 `WARNING:`-in-reply rule is moot now that the warn tier is gone.
 - `agent-flow-fixture` repo still exists: deleting needs `gh auth refresh -h github.com -s delete_repo` (user's action), then `gh repo delete Rayyyyyyyyyyyyyyyyyyyy/agent-flow-fixture --yes`.
 - Canaries: they guard `audit.py` (a method tool) but run here and ship trap reports to every user; keep, move out of the plugin dir, or drop? Ask.
-- Next after those: one opus review + audit over v0.1, then #13 release (README, CHANGELOG, 0.1.0, re-run canaries for the new version, tag, pinned install).
+- Next: #13 release (README, CHANGELOG, 0.1.0, re-run canaries for the new version, tag, pinned install).
