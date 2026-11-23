@@ -21,30 +21,26 @@
 
 ## Finish line
 
-Reviewed by the agency-agents Developer Advocate role (2026-11-19); its rewrites are folded in. Each line names the evidence that proves it from outside the agent.
+Rewritten 2026-11-23 (realignment, see Decisions). This phase is the Method; release (old C9, C11) waits for #13. Removed: C4 (companions are gone, ADR 0002), C7's sandbox part and C15 (no sandbox audit, ADR 0001), C9 and C11 (moved to #13).
 
 - C1 installable, evidence: on macOS and Ubuntu CI runners with a fresh `HOME`, `claude plugin validate .`, `claude plugin marketplace add`, `claude plugin install agent-flow@agent-flow` exit 0 and `claude plugin list` shows the plugin enabled
-- C2 entry works, evidence: `scripts/check_discussion.py` validates the required sections of a `discussion.md` (verbatim words, finish line, authorizations, decisions, open questions/frontier); its unit test passes on this repo's `docs/agent-flow/discussion.md` and fails on a copy missing a section
-- C3 first-party only, licenses clear, evidence: `scripts/check_package.py` finds no third-party skill inside the plugin; LICENSE (MIT) and NOTICE exist; files derived from agency-agents carry its MIT notice
-- C4 works without companions: evidence: user judges (the user runs the installed plugin with no companion skills on a project of their choice)
-- C5 no personal data, evidence: `scripts/check_package.py` finds 0 hits for `/Users/`, email addresses, `rtk`, `ponytail`, `Asia/Taipei`; the GitHub handle appears only in `README.md` and `.claude-plugin/marketplace.json`
-- C6 outer boundaries and autonomy, evidence: `SKILL.md` has a Boundaries section that project rules may tighten but never loosen; a unit test greps each line:
-  (a) do without asking: branch, commit, push, PR, CI, merge, including the CI-setup PR;
-  (b) ask first: deploy/publish to users; writes to repos or services the user does not own; anything that notifies other people; using secrets, spending money, deleting or overwriting the user's own data; a verification method that spends usage, runs real model calls or creates external resources (asked upfront with a cost estimate); browser use;
-  (c) never: claim done without evidence or report unverified as verified; fabricate projects, data or records as verification; delete or weaken tests, checks, CI, the boundaries or the kill switch to make a gate pass; commit or print secrets;
-  (d) kill switch: with `.agent-flow/STOP` present or `merge: never` in `.agent-flow/config`, `merge_gate.py` refuses to merge (unit tests)
-- C16 project rules: `SKILL.md` tells the agent in the calling repo to write that repo's own rules and verify (verify commands, CI, whether E2E is needed, merge conditions on top of `merge_gate.py`'s fixed floor) into its `CLAUDE.md`/`AGENTS.md` or `docs/<topic>/`, inside the boundaries; a unit test greps the instruction; whether the result fits a project: evidence: user judges
-- C7 cross-platform, evidence: script tests green on GitHub Actions macOS and Ubuntu; on Ubuntu with bwrap installed the sandbox path really executes (not skipped); a job without any sandbox asserts project-code evidence is `unverified` and that merge is blocked
-- C8 English, evidence: CJK character count in the plugin directory (rules, roles, scripts, error messages) is 0; the skill tells the agent to answer in the user's language
-- C9 releasable, evidence: tag `v0.1.0`, CHANGELOG, README; a marketplace entry pinned to `ref: v0.1.0` installs and `claude plugin list` shows 0.1.0; `.audit.md` records the same version
-- C10 dogfooded: evidence: user judges (the user runs one ticket end to end on a project of their choice)
-- C11 time to first success: evidence: user judges (the user follows README Quick Start in a fresh `HOME` and reaches a merged PR)
-- C12 preflight, evidence: `agent-flow doctor` (script) reports each missing piece with its fix and a non-zero exit: git, gh, gh login, push access, Python 3.11+, claude CLI, sandbox availability, branch-protection availability (public or paid plan), HTTPS remote without `workflow` scope; one unit test per check
-- C13 resumable, evidence: `references/tickets.md` requires the `<!-- agent-flow:<topic>#<NN> -->` marker and a search for it before creating an issue or PR (a unit test greps the rule)
-- C14 cost shown, evidence: `review.py` prints tokens and $ (from `claude -p --output-format json`; unit test on a recorded JSON); the skill tells interactive users to check `/cost` (an interactive session cannot read its own usage)
-- C15 no model call on the deterministic audit path, evidence: a test asserts `audit.py` does not invoke `claude` when the report has no rebuttal
-
-Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Windows (WSL2 documented); retro and method log; agency-agents / grilling integration; upgrade migration (README: old `.audit.md` stay bound to their version); uninstall beyond a README section.
+- C2 records checkable, evidence: `scripts/check_discussion.py` passes on this file and fails on a copy missing a section (unit test)
+- C3 first-party only, licenses clear, evidence: `scripts/check_package.py` finds no third-party skill inside the plugin; LICENSE (MIT) and NOTICE exist
+- C5 no personal data, evidence: `scripts/check_package.py` finds 0 hits for `/Users/`, email addresses, `rtk`, `ponytail`, `Asia/Taipei`; the GitHub handle appears only where allowed
+- C6 outer boundaries and kill switch, evidence: unit test greps each Boundaries line in `SKILL.md` (do / ask first / never); `merge_gate.py` refuses with `.agent-flow/STOP` or `merge: never` (unit tests)
+- C7 cross-platform scripts, evidence: unit tests green on GitHub Actions macOS and Ubuntu
+- C8 English, evidence: CJK count in the plugin directory is 0; the skill tells the agent to answer in the user's language
+- C10 dogfooded, evidence: user judges (the Owner runs a goal end to end in an experiment repo)
+- C12 preflight, evidence: `doctor.py` reports each missing piece with its fix and a non-zero exit (one unit test per check)
+- C13 resumable, evidence: a unit test greps the rule that a re-run reuses existing ticket files, branch and PR instead of creating duplicates
+- C14 cost shown, evidence: a unit test greps the rule that the final report lists the review's cumulative tokens; no budget until the experiment repo gives numbers
+- C16 project rules, evidence: a unit test greps the instruction to write the Calling repo's own rules and verify inside the Boundaries; fit: user judges
+- C17 Environment alignment, evidence: a unit test greps step 0 in `SKILL.md` (list installed skills, one per step with a reason, required settings, `.agent-flow/skills.md`, read `SKILL.md` for non-invocable skills, own instruction only when none fits); fit: user judges
+- C18 confirm and Plan PR, evidence: unit tests grep the confirm step (task list and goal re-confirmed with the Owner before cutting tickets) and the Plan PR contents; `merge_gate.py` refuses to merge a Plan PR unless `plan: agent` is set in `.agent-flow/config` (unit tests)
+- C19 locks, evidence: `merge_gate.py` refuses a non-Plan PR that touches `.agent-flow/**`, CI workflow files or `docs/<topic>/tickets/` (unit tests)
+- C20 Evidence check, evidence: `merge_gate.py` refuses when any ticket criterion lacks a Verify command, when a Verify command uses a pipe, `;` or `$?`, or when the Evidence check CI job is not green (unit tests); the skill tells the agent to add that CI job (rule grep)
+- C21 no reinvented steps, evidence: user judges (each step's text in the plugin either points at the skill chosen in step 0 or is the minimal fallback)
+- C22 owner-judged items, evidence: `merge_gate.py` refuses a PR labelled `agent-flow:owner-judges` (unit test); tickets carry only Verify commands (rule grep)
 
 ## Authorizations
 
@@ -85,10 +81,18 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 - 2026-11-23 user (「陷阱也是要跟著呼叫端project 內容去客製的啊， canaries 不是沒用嗎？」): the plugin ships no canaries, no stamp and no `run_canaries.py`; trap reports are written per project from its own code, as skill-workflow's project-rules layer did (parity C8, C15).
 - 2026-11-23 user (「我當初創agent-flow 這個repo 不是叫你重弄欸，是要站在skill-flow這個基礎上做出一個抽象的工具方法包」): skill-workflow is the base. Port it file by file; abstract only what is tied to the skill-workflow repo itself (orphan project branches, CATALOG, personal paths, language); keep every other rule. Rules the user changed since stay changed (7 steps, Boundaries, kill switch, merge_gate/land, bwrap, ticket marker). `parity.md` is the checklist; its "ask the user" rows are settled by this rule, not asked.
 
+- 2026-11-23 user (「我覺得repo 方向偏了」「目標很明確，所以先把方法做好，才能包裝給其他project用啊」「先自己，其他人只是附帶」): the drift was packaging before the Method was good. The Owner is the first user; the Plugin is the product even for the Owner (「就算用戶是我自己也是透過 / 來呼叫」). Release (#13, old C9, C11) waits until the Method is done. Vocabulary: `GLOSSARY.md`.
+- 2026-11-23 user (Q3 「對」, 「不需要再改skill-workflow 啊」): this phase is a faithful port plus Owner-requested improvements (Base A9's second trigger); skill-workflow stays frozen at `31114d7`.
+- 2026-11-23 user, requested improvements: 「review太花token，稽核也沒有根據證據」「切票切完可以並行」「我的理想是你可以自己運行：接收需求、收集與彙整資料當作實作地基、切票、實作、驗證、merge，同時資料要有事實根據，驗證要有證據查核不能為了綠燈自己改規則」「應該每個動作都有可以套用的skill，不要重複造輪子」.
+- 2026-11-23 user (Q7 「先做抽象的方法論，我會套到實驗repo去做呼叫」): proof of the Method is the Owner's own run in an experiment repo; the agent runs no E2E.
+- 2026-11-23 user (Q9-Q30, all 「ok」/「對」): the Method is 0 Environment alignment, 1 receive, 2 gather into a cited `docs/<topic>/foundation.md`, 3 confirm the task list and re-confirm the goal with the Owner (「切票前與使用者確認task與重新確認目標」), 4 cut tickets into `docs/<topic>/tickets/<NN>-<slug>.md`, each criterion with a Verify command, then the Plan PR (finish line, Foundation, rules, tickets; merged by the Owner unless `.agent-flow/config` has `plan: agent`), 5 implement via the chosen implementation skill on one integration branch and one PR per goal, 6 Review by the chosen review skill, once, with cumulative tokens reported, 7 Evidence check in CI, 8 merge through `merge_gate.py`/`land.py`. Replaces the 7-step order of 2026-11-20, per-ticket PRs, GitHub issues as the ticket source, and the reviewer-supplied evidence.
+- 2026-11-23 user (Q11, Q13-Q15, Q19, Q26, Q27): Verify commands are fixed in the Plan PR and locked; the Evidence check is a CI job; `merge_gate.py` enforces the locks, coverage, no pipes, and the `agent-flow:owner-judges` label. "Audit" splits into Evidence check and Review. `audit.py`, `sandbox.py`, `canaries.py`, `pending_audits.py`, `review.py`, `agents/reviewer.md`, `agents/implementer.md` are to be removed (ADR 0001). Replaces the 2026-11-19 sandbox audit decision and the 2026-11-23 audit-layer port.
+- 2026-11-23 user (「ponytail 可以做到 audit吧，你被自己侷限住了，本機電腦不是只有裝matt的skill」「先讓我可以在本機run起來，也就是要可以呼叫使用者電腦裡的skill，使用plugin之前的動作是對齊環境」「不是只有matt的要用」): skills come from whatever the Owner's environment has, chosen in step 0; no bundled copies and no plugin dependency (ADR 0002). Replaces the 2026-11-19 companions-with-fallback decision; its premise that grill-with-docs had no licence is outdated (mattpocock/skills is MIT).
+- 2026-11-23 user (Q18 「ok」): order of work: this realignment first, then the parity rows it does not cover (Boundaries A5-A7 first), then the Owner's experiment-repo run, then #13.
+
 ## Open questions
 
-- `references/review.md` (and `agents/reviewer.md`): to be re-discussed with the user (「review.md 重新討論」), in light of the plugin being abstract: what review takes from the calling repo vs. what the plugin fixes. Do not change it before that.
-- Shipped rules for C2, C6, C13, C16 landed with tests (`tests/test_check_discussion.py`, `tests/test_rules.py`); the PR #27 `WARNING:`-in-reply rule is moot now that the warn tier is gone.
+- Next: cut the realignment into tickets (this repo's PRs still merge on green CI, no review/audit): step 0 Environment alignment, confirm step, Plan PR and `plan:` setting, `docs/<topic>/tickets/` layout, `merge_gate.py` locks / coverage / no-pipe / owner-judges, the Evidence check CI job instruction, removal of the audit/review/sandbox scripts and their tests and CI jobs, `references/` trimmed to what no skill covers, C1-C22 tests.
+- `parity.md` needs a pass marking rows superseded by the 2026-11-23 realignment (review, audit, canaries, tickets, records, companions).
+- Unverified until the Owner's experiment run: whether a skill shipped by another plugin can be invoked through the Skill tool, and whether reading `SKILL.md` works for `disable-model-invocation` skills from the plugin cache.
 - `agent-flow-fixture` repo still exists: deleting needs `gh auth refresh -h github.com -s delete_repo` (user's action), then `gh repo delete Rayyyyyyyyyyyyyyyyyyyy/agent-flow-fixture --yes`.
-- Audit layer ported from skill-workflow (parity C2, C4-C9, C13-C16, B24, B31, B33): baseline `auditor/RULES.md`, project rules and trap reports in the calling repo's `.agent-flow/auditor/`, model path with tier-up and relevance, report sha256, `canaries.py`, `pending_audits.py`.
-- Next: the remaining weakened and lost rows of `parity.md` (Boundaries A5-A7 first), then #13 release (README, CHANGELOG, 0.1.0, tag, pinned install).
