@@ -34,10 +34,19 @@ class Boundaries(unittest.TestCase):
 
 class RepoRules(unittest.TestCase):
     def test_step_3_writes_repo_rules(self):
-        step = SKILL[SKILL.index("3. **Repo rules and verify.**"):SKILL.index("4. **Spec and tickets.**")]
+        step = SKILL[SKILL.index("3. **Gather information.**"):SKILL.index("4. **Cut tickets.**")]
         for s in ["own rules and verify inside Boundaries", "end-to-end tests", "`CLAUDE.md` or `AGENTS.md`",
                   "may add conditions, never remove one"]:
             self.assertIn(s, step)
+
+
+class Flow(unittest.TestCase):
+    def test_seven_steps_in_order(self):
+        steps = ["1. **Receive the request.**", "2. **Confirm the request.**", "3. **Gather information.**",
+                 "4. **Cut tickets.**", "5. **Implement.**", "6. **Review.**", "7. **Audit.**"]
+        positions = [SKILL.index(s) for s in steps]
+        self.assertEqual(positions, sorted(positions))
+        self.assertNotIn("8. **", SKILL)
 
 
 class Resume(unittest.TestCase):

@@ -42,4 +42,4 @@ Only: ticket location (issue number or file path), `docs/<topic>/discussion.md` 
 
 Report back: status (`DONE`, `GUESSED`, `BLOCKED`), PR URL, commit, each Verify command with its result, the guess list, what was not verified.
 
-Handling a report: judge each guess. Correct guesses go into the ticket as a comment; wrong ones: revert those commits, fix the ticket, re-dispatch. `GUESSED` with all guesses correct counts as `DONE`. `BLOCKED` goes back to the clarity gate. A second `BLOCKED`, or a second revert, on one ticket means stuck.
+Handling a report: judge each guess. Correct guesses go into the ticket as a comment; wrong ones: revert those commits, fix the ticket, re-dispatch. `GUESSED` with all guesses correct counts as `DONE`. `BLOCKED` goes back to cutting tickets (step 4). A second `BLOCKED`, or a second revert, on one ticket means stuck.
