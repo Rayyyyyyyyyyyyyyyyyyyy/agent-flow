@@ -90,4 +90,5 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 - `references/review.md` (and `agents/reviewer.md`): to be re-discussed with the user (「review.md 重新討論」), in light of the plugin being abstract: what review takes from the calling repo vs. what the plugin fixes. Do not change it before that.
 - Shipped rules for C2, C6, C13, C16 landed with tests (`tests/test_check_discussion.py`, `tests/test_rules.py`); the PR #27 `WARNING:`-in-reply rule is moot now that the warn tier is gone.
 - `agent-flow-fixture` repo still exists: deleting needs `gh auth refresh -h github.com -s delete_repo` (user's action), then `gh repo delete Rayyyyyyyyyyyyyyyyyyyy/agent-flow-fixture --yes`.
-- Next: port skill-workflow as the base (see Decisions 2026-11-23 and `parity.md`), then #13 release (README, CHANGELOG, 0.1.0, tag, pinned install).
+- Audit layer ported from skill-workflow (parity C2, C4-C9, C13-C16, B24, B31, B33): baseline `auditor/RULES.md`, project rules and trap reports in the calling repo's `.agent-flow/auditor/`, model path with tier-up and relevance, report sha256, `canaries.py`, `pending_audits.py`.
+- Next: the remaining weakened and lost rows of `parity.md` (Boundaries A5-A7 first), then #13 release (README, CHANGELOG, 0.1.0, tag, pinned install).

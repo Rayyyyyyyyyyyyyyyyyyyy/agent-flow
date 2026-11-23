@@ -1,3 +1,4 @@
+import hashlib
 import contextlib
 import io
 import json
@@ -36,12 +37,13 @@ class LandTest(unittest.TestCase):
         git(root, "push", "origin", "main")
         git(root, "worktree", "add", str(wt), "-b", "t/01")
         git(wt, "push", "origin", "t/01")
-        (root / AUDIT).parent.mkdir(parents=True)
-        (root / AUDIT).write_text("# Audit\n" + audit + "\n")
+        audit_text = "# Audit\nReport sha256: %s\n%s\n" % (hashlib.sha256(b"# Review\n").hexdigest(), audit)
+        for d in [root] + ([wt] if root_is_wt else []):
+            (d / AUDIT).parent.mkdir(parents=True)
+            (d / AUDIT.replace(".audit.md", ".md")).write_text("# Review\n")
+            (d / AUDIT).write_text(audit_text)
         if root_is_wt:
-            (wt / AUDIT).parent.mkdir(parents=True)
-            (wt / AUDIT).write_text("# Audit\n" + audit + "\n")
-            git(wt, "add", AUDIT)
+            git(wt, "add", "docs")
             git(wt, "commit", "-m", "audit")
         if stop:
             (root / ".agent-flow").mkdir()

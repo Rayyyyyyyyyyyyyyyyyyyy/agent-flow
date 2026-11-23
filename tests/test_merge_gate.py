@@ -1,4 +1,5 @@
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -18,7 +19,7 @@ AUDIT = "docs/t/reviews/review-%d.audit.md"
 
 
 class MergeGateTest(unittest.TestCase):
-    def gate(self, checks=GREEN, audits=None, stop=False, config=None, gh=True):
+    def gate(self, checks=GREEN, audits=None, stop=False, config=None, gh=True, edit_report=False):
         """audits: {round: last line}; the diff lists every round. Returns (exit code, output)."""
         root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, root)
@@ -26,7 +27,11 @@ class MergeGateTest(unittest.TestCase):
         for n, last in audits.items():
             p = root / (AUDIT % n)
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text("# Audit\n" + last + "\n")
+            report = p.with_name("review-%d.md" % n)
+            report.write_text("# Review\n")
+            p.write_text("# Audit\nReport sha256: %s\n%s\n" % (hashlib.sha256(report.read_bytes()).hexdigest(), last))
+            if edit_report:
+                report.write_text("# Review, edited after the audit\n")
         (root / ".agent-flow").mkdir()
         if stop:
             (root / ".agent-flow/STOP").write_text("")
@@ -72,6 +77,11 @@ class MergeGateTest(unittest.TestCase):
     def test_latest_round_decides(self):
         self.assertEqual(self.gate(audits={1: "Result: failed", 2: "Result: passed"})[0], 0)
         self.assertEqual(self.gate(audits={2: "Result: passed", 10: "Result: failed"})[0], 1)
+
+    def test_report_edited_after_audit_blocks(self):
+        code, out = self.gate(edit_report=True)
+        self.assertEqual(code, 1)
+        self.assertIn("changed after its audit", out)
 
     def test_stop_file_blocks(self):
         self.assertEqual(self.gate(stop=True)[0], 1)
