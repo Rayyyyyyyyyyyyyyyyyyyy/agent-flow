@@ -41,7 +41,7 @@ class Case(unittest.TestCase):
     def run_audit(self, body, *flags, env=None, header=True):
         report = self.tmp / "review-1.md"
         report.write_text((HEADER.format(commit=self.commit) if header else "") + body)
-        full_env = dict(os.environ, AGENT_FLOW_SKIP_STAMP="1", AGENT_FLOW_SANDBOX="none", **(env or {}))
+        full_env = dict(os.environ, AGENT_FLOW_SANDBOX="none", **(env or {}))
         done = subprocess.run([sys.executable, str(SCRIPTS / "audit.py"), str(report), "--repo", str(self.repo), *flags],
                               capture_output=True, text=True, env=full_env)
         out = self.tmp / "review-1.audit.md"
@@ -104,7 +104,7 @@ class Unverified(Case):
         report = self.tmp / "r.md"
         report.write_text(HEADER.format(commit=self.commit) + "### C1 — PASS\nCriterion: x\nCommand: `python3 hello.py`\nOutput contains: `hello 42`\n")
         with mock.patch.object(sandbox, "available", return_value="seatbelt"), mock.patch.object(sandbox, "run", fake_run), \
-                mock.patch.dict(os.environ, {"AGENT_FLOW_SKIP_STAMP": "1"}):
+                mock.patch.dict(os.environ, {}):
             code = audit.main([str(report), "--repo", str(self.repo)])
         self.assertEqual(code, 0)
         self.assertEqual(calls[0][0], "python3 hello.py")
@@ -130,16 +130,6 @@ class Version(Case):
         _, text, _ = self.run_audit("### C1 — PASS\nCriterion: x\nPosition: `hello.py:1`\nContains: `hello`\n")
         self.assertIn(f"Plugin version: {VERSION}", text)
 
-    def test_stamp_mismatch_exits_2(self):
-        env = {k: v for k, v in os.environ.items() if k != "AGENT_FLOW_SKIP_STAMP"}
-        report = self.tmp / "r.md"
-        report.write_text(HEADER.format(commit=self.commit) + "### C1 — PASS\nCriterion: x\nPosition: `hello.py:1`\nContains: `hello`\n")
-        plugin = self.tmp / "plugin"
-        shutil.copytree(SCRIPTS.parent, plugin)
-        (plugin / "auditor/canary-stamp.txt").write_text("version: 9.9.9\n")
-        done = subprocess.run([sys.executable, str(plugin / "scripts/audit.py"), str(report), "--repo", str(self.repo)], capture_output=True, text=True, env=env)
-        self.assertEqual(done.returncode, 2)
-        self.assertIn(f"canary stamp is for 9.9.9, plugin is {VERSION}", done.stderr)
 
 
 class NoClaude(Case):
@@ -174,7 +164,7 @@ class ExitCodes(Case):
         code, _, done = self.run_audit("")
         self.assertEqual(code, 1)  # no items: malformed
         done = subprocess.run([sys.executable, str(SCRIPTS / "audit.py"), str(self.tmp / "missing.md"), "--repo", str(self.repo)],
-                              capture_output=True, text=True, env=dict(os.environ, AGENT_FLOW_SKIP_STAMP="1"))
+                              capture_output=True, text=True)
         self.assertEqual(done.returncode, 2)
 
     def test_failure_beats_unverified(self):

@@ -173,12 +173,8 @@ def main(argv=None) -> int:
     ap.add_argument("--model", default="opus")
     args = ap.parse_args(argv)
     version = json.loads((PLUGIN / ".claude-plugin/plugin.json").read_text())["version"]
-    stamp_file = PLUGIN / "auditor/canary-stamp.txt"
     try:
         text = args.report.read_text()
-        stamp = stamp_file.read_text().splitlines()[0].removeprefix("version: ") if stamp_file.exists() else "none"
-        if stamp != version and not os.environ.get("AGENT_FLOW_SKIP_STAMP"):
-            raise SystemExit(f"canary stamp is for {stamp}, plugin is {version}; maintainer must run scripts/run_canaries.py")
         report = parse(text)
         problems, unverified, log = verify(report, args.repo.resolve(), args.unsandboxed)
     except (OSError, SystemExit) as e:

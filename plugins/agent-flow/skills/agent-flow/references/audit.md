@@ -18,7 +18,7 @@ The result is the last line of the `.audit.md`: `Result: passed`, `Result: faile
 
 ## Rules come from the installed plugin
 
-The rules and `audit.py` are the ones in the installed plugin version, not the working tree. `.audit.md` records `Plugin version: <version>`. Never edit `audit.py`, the canaries or a `.audit.md` to make a report pass. If you disagree with an audit, give the report, the audit and your reason to the user; the main session cannot overturn it.
+The rules and `audit.py` are the ones in the installed plugin version, not the working tree. `.audit.md` records `Plugin version: <version>`. Never edit `audit.py`, the project's trap reports or a `.audit.md` to make a report pass. If you disagree with an audit, give the report, the audit and your reason to the user; the main session cannot overturn it.
 
 Spot-check, done by the user outside the session: clone the repo at that version's tag and re-run the audit.
 
@@ -28,8 +28,6 @@ python3 <empty dir>/plugins/agent-flow/scripts/audit.py <report> --repo <repo>
 ```
 
 The result must match the recorded `.audit.md`.
-
-Canaries (trap reports the auditor must reject) are run by the maintainer before a release, never on a user's machine. Their stamp ships in the plugin; `audit.py` refuses to run when it is for another version.
 
 ## Merge gate
 

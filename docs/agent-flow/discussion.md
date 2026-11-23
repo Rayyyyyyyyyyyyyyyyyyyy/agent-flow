@@ -42,7 +42,7 @@ Reviewed by the agency-agents Developer Advocate role (2026-11-19); its rewrites
 - C12 preflight, evidence: `agent-flow doctor` (script) reports each missing piece with its fix and a non-zero exit: git, gh, gh login, push access, Python 3.11+, claude CLI, sandbox availability, branch-protection availability (public or paid plan), HTTPS remote without `workflow` scope; one unit test per check
 - C13 resumable, evidence: `references/tickets.md` requires the `<!-- agent-flow:<topic>#<NN> -->` marker and a search for it before creating an issue or PR (a unit test greps the rule)
 - C14 cost shown, evidence: `review.py` prints tokens and $ (from `claude -p --output-format json`; unit test on a recorded JSON); the skill tells interactive users to check `/cost` (an interactive session cannot read its own usage)
-- C15 no model calls on the user's machine for canaries, evidence: canaries run by the maintainer before tagging; the stamp ships with the version; a test asserts `audit.py` does not invoke `claude` on the deterministic path
+- C15 no model call on the deterministic audit path, evidence: a test asserts `audit.py` does not invoke `claude` when the report has no rebuttal
 
 Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Windows (WSL2 documented); retro and method log; agency-agents / grilling integration; upgrade migration (README: old `.audit.md` stay bound to their version); uninstall beyond a README section.
 
@@ -82,10 +82,12 @@ Out of v0.1 (later): designer, writer, researcher, planner roles; srt; native Wi
 - 2026-11-20 user (「回到flow本身很單純 接收需求 確認需求 搜集資訊 切票 實作 review audit」「步驟改成我的 7 步」): the flow in `SKILL.md` and `references/workflow.md` is exactly 7 steps: 1 receive the request, 2 confirm the request (finish line), 3 gather information (incl. the repo's own rules and verify), 4 cut tickets (incl. the guess check), 5 implement, 6 review, 7 audit (ends with `land.py`). Doctor stays a start check; the report stays a closing section. Replaces the 9-step order above.
 - 2026-11-20 user (「現在是一個抽象的plugin 很多情境都是要依照呼叫端的repo 內容去制定」): the plugin is abstract; situations are decided from the calling repo's content, not fixed in the plugin.
 
+- 2026-11-23 user (「陷阱也是要跟著呼叫端project 內容去客製的啊， canaries 不是沒用嗎？」): the plugin ships no canaries, no stamp and no `run_canaries.py`; trap reports are written per project from its own code, as skill-workflow's project-rules layer did (parity C8, C15).
+- 2026-11-23 user (「我當初創agent-flow 這個repo 不是叫你重弄欸，是要站在skill-flow這個基礎上做出一個抽象的工具方法包」): skill-workflow is the base. Port it file by file; abstract only what is tied to the skill-workflow repo itself (orphan project branches, CATALOG, personal paths, language); keep every other rule. Rules the user changed since stay changed (7 steps, Boundaries, kill switch, merge_gate/land, bwrap, ticket marker). `parity.md` is the checklist; its "ask the user" rows are settled by this rule, not asked.
+
 ## Open questions
 
 - `references/review.md` (and `agents/reviewer.md`): to be re-discussed with the user (「review.md 重新討論」), in light of the plugin being abstract: what review takes from the calling repo vs. what the plugin fixes. Do not change it before that.
 - Shipped rules for C2, C6, C13, C16 landed with tests (`tests/test_check_discussion.py`, `tests/test_rules.py`); the PR #27 `WARNING:`-in-reply rule is moot now that the warn tier is gone.
 - `agent-flow-fixture` repo still exists: deleting needs `gh auth refresh -h github.com -s delete_repo` (user's action), then `gh repo delete Rayyyyyyyyyyyyyyyyyyyy/agent-flow-fixture --yes`.
-- Canaries: they guard `audit.py` (a method tool) but run here and ship trap reports to every user; keep, move out of the plugin dir, or drop? Ask.
-- Next: #13 release (README, CHANGELOG, 0.1.0, re-run canaries for the new version, tag, pinned install).
+- Next: port skill-workflow as the base (see Decisions 2026-11-23 and `parity.md`), then #13 release (README, CHANGELOG, 0.1.0, tag, pinned install).
