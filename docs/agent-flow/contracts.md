@@ -15,92 +15,39 @@ Every ticket follows these. A ticket that needs to change one says so in its PR 
 `docs/<topic>/discussion.md` has exactly these second-level headings, in this order:
 `## Original words`, `## Finish line`, `## Authorizations`, `## Decisions`, `## Open questions`.
 Finish-line items are `- C<n> <text>`; each contains `evidence:` (case-insensitive) or a line `Evidence:` under it.
-Specs: `docs/<topic>/spec.md`. Review reports: `docs/<topic>/reviews/review-<round>.md`; audits next to them as `review-<round>.audit.md`.
+Also in `docs/<topic>/`: `foundation.md`, `spec.md`, `tickets/<NN>-<slug>.md`. Skill map: `.agent-flow/skills.md`.
 
-## Ticket marker
+## Branches (Calling repo)
 
-Every issue and PR body created by the flow contains `<!-- agent-flow:<topic>#<NN> -->`.
+Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: head `agent-flow/<topic>-plan`, base `agent-flow/<topic>`. Integration PR: head `agent-flow/<topic>`, base the default branch.
 
-## Review report format (written by the reviewer, parsed by audit.py)
+## Ticket format (parsed by verify.py)
 
-```
-# Review: <topic> round <n>
+- A criterion is a line `- [ ] <text>` or `- [x] <text>`.
+- Under it, indented: one or more `Verify: `<command>`` lines, or an `Owner judges: <text>` line. A `#` heading ends the criterion.
+- A Verify command must not contain `|`, `;`, `&`, `>`, `<`, `$(`, `$?`, nor be `sh|bash|zsh|dash|fish ... -c ...`. It runs with `shell=False` (`shlex.split`) from the cwd, timeout 900 s; exit 0 is PASS.
 
-Reviewer model: <model>
-Reviewed commit: <full sha>
-Base: <full sha>            (optional)
+## verify.py
 
-### C1 — PASS
-Criterion: <text>
-Command: `<command run from the repo root>`
-Output contains: `<text>`
-
-### C2 — PASS
-Criterion: <text>
-Position: `<repo-relative path>:<line>`
-Contains: `<text>`
-
-### C3 — FAIL
-Criterion: <text>
-Reproduce: `<command>`
-Actual contains: `<text>`
-Expected: <text>
-
-### C4 — UNKNOWN
-Criterion: <text>
-Missing: <what would be needed>
-
-## Rebuttal
-### C3
-Reason: <text>
-Command: `<command>`
-Output contains: `<text>`
-```
-
-- Item headings are exactly `### <ID> — PASS|FAIL|UNKNOWN` (em dash). Other headings must not contain PASS, FAIL, UNKNOWN or Rebuttal.
-- Every evidence source line (`Command`, `Reproduce`, `Position`) is followed by one expectation line (`Output contains`, `Actual contains`, `Contains`). Expectations are at least 2 characters, except `[exit N]`, which matches the exit-code line audit.py appends to command output.
-- An item may carry several evidence pairs.
-
-## audit.py
-
-- CLI: `audit.py <report> --repo <repo> [--unsandboxed] [--model]`. `--model` lets the model judge a report without a rebuttal; a report with a rebuttal is always judged by the model.
-- `Reviewer model:` must name a tier (`haiku`, `sonnet`, `opus`, as a substring). The judging model is one tier up (haiku→sonnet, sonnet→opus, opus→opus), opus when there is a rebuttal.
-- Rules: `plugins/agent-flow/auditor/RULES.md`, then the project's `.agent-flow/auditor/RULES.md` read with `git show <origin default branch>:<path>` after `git fetch origin` (no origin: baseline only; fetch failure: exit 2). Prompt order: rules, `# Report under audit`, report, `# Rerun log`, log, `# Diff`, `git diff <base> <commit>` or `git show <commit>` (≤ 200,000 characters).
-- Model reply: one line per item `<ID>: upheld|not upheld|insufficient evidence - <basis>`, per rebuttal `Rebuttal <ID>: ...`, at most one `Result: passed|failed`. Passes only when every item (rebutted FAILs via their rebuttal) is `upheld`, no item is judged twice, and any Result line says passed.
-- Trap gate: when `<repo>/.agent-flow/auditor/canaries/expected.json` exists and `<repo>/.agent-flow/auditor/canary-stamp.txt` differs from `audit.stamp(repo, rules)` (sha256 of rules, `claude --version`, tier map, `audit.py`, every file under `canaries/`), exit 2 naming `canaries.py`.
-- Exit codes: 0 passed, 1 failed, 3 partly unverified, 2 usage or setup error (bad report path, git failure, trap gate).
-- Output file: `<report without .md>.audit.md`. First line `# Audit: <report file name>`. Then, with `--unsandboxed`, the line `WARNING: project commands ran without a sandbox`; `Plugin version: <version from plugin.json>`, `Report sha256: <hex>`, `Reviewed commit:`, `Rules: <sources>`, `Model: <model or none>`; sections `## Problems`, `## Rerun log`, `## Model verdict`, and `## Run these yourself` listing unverified commands. Last line exactly `Result: passed`, `Result: failed` or `Result: partly unverified`.
-
-## canaries.py
-
-- CLI: `canaries.py --repo <repo> [--force]`. Reads `<repo>/.agent-flow/auditor/canaries/expected.json` (`{"<report>.md": "passed"|"failed"}`), audits a copy of each report (outside the repo) against `<repo>` on the model path, prints `OK` or `MISS` per report. Exit 0 all matched and the stamp was written, 1 a mismatch (no stamp), 2 setup error. Skips with exit 0 when the stamp already matches, unless `--force`.
-
-## pending_audits.py
-
-- CLI: `pending_audits.py [repo]`. In every worktree, the latest `docs/*/reviews/review-<n>.md` per directory must have a `.audit.md` with the line `Report sha256: <its current sha256>` and last line `Result: passed`. Exit 0 none pending, 1 pending (one line each).
-
-## sandbox.py
-
-- `available() -> str | None`: `"seatbelt"`, `"bwrap"` or `None`. The environment variable `AGENT_FLOW_SANDBOX=none` forces `None`.
-- `run(cmd: str, cwd: Path, writable: list[Path], timeout: int = 600) -> tuple[int, str]`: runs `/bin/sh -c cmd` inside the sandbox; returns exit code and combined output. Raises `RuntimeError` when no sandbox is available.
-- Denied reads: `~/.ssh`, `~/.claude`, `~/.config`, `~/.aws`, `~/.gnupg`, `~/.netrc`. Writes only to `writable` (resolved real paths), `/dev/null`, `/dev/fd`. Network: macOS localhost only; Linux none.
+- CLI: `verify.py [--check-only] [<tickets dir> ...]`; default dirs: `docs/*/tickets` under the cwd. Stdlib only; a Calling repo runs a copy at `.agent-flow/verify.py`.
+- Output lines: `ERROR <file>:<line>: <reason>`, `PASS <file>:<line>: <command>`, `FAIL <file>:<line>: <command> (exit <n>)` plus up to 20 indented output lines, `OWNER <file>:<line>: <criterion>`.
+- Exit 0 all passed (owner-judged criteria listed, not run), 1 a failure or a malformed ticket, 2 no ticket files. `--check-only` validates and runs nothing.
 
 ## merge_gate.py
 
 - CLI: `merge_gate.py <pr-number> [--repo-root <dir>]`; exit 0 mergeable, 1 blocked (reasons printed one per line, each starting `BLOCKED:`), 2 setup error.
-- CI: `gh pr checks <n> --json name,state,bucket`; green when every bucket is `pass` or `skipping` and at least one is `pass`.
-- Audit: among files changed in the PR (`gh pr diff <n> --name-only`) matching `docs/*/reviews/review-*.audit.md`, take the highest round; its last line must be `Result: passed` and it must contain `Report sha256: <sha256 of review-<n>.md in --repo-root>`.
-- Kill switch: read from `--repo-root` (default cwd): `.agent-flow/STOP` exists, or `.agent-flow/config` has a line `merge: never`.
+- Reads `gh pr checks <n> --json name,state,bucket` and `gh pr view <n> --json baseRefName,headRefName,headRefOid,labels`.
+- CI: green when every bucket is `pass` or `skipping` and at least one is `pass`.
+- Label `agent-flow:owner-judges` blocks.
+- Plan PR (head ends `-plan`): blocked unless `.agent-flow/config` has `plan: agent`.
+- Any other PR: a check named `evidence-check` must pass (the reason starts `CI ` so `land.py` treats it as pending); `gh pr list --base <head> --head <head>-plan --state merged --json mergeCommit` must return a Plan PR; `gh api repos/{owner}/{repo}/compare/<plan merge oid>...<headRefOid>` must list no file under `.agent-flow/`, `.github/workflows/` or `docs/*/tickets/`.
+- Kill switch, read from `--repo-root` (default cwd): `.agent-flow/STOP` exists, or `.agent-flow/config` has `merge: never`. Config lines are `key: value`, case-insensitive.
 
 ## land.py
 
 - CLI: `land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]`; imports `merge_gate.main`, so its BLOCKED lines and exit codes pass through. Exit 0 merged, 1 blocked or failed, 2 setup error.
-- Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, first run the gate's non-CI checks (audit, kill switch; blocked means no remote write), then `gh pr update-branch <n>` and `gh pr checks <n> --watch`; run the full gate; `gh pr merge <n> --merge --match-head-commit <headRefOid>`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>`. Any earlier failure prints why and changes nothing.
+- Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, first run the gate and stop on any reason not starting `BLOCKED: CI` (no remote write), then `gh pr update-branch <n>` and `gh pr checks <n> --watch`; run the full gate; `gh pr merge <n> --merge --match-head-commit <headRefOid>`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>`. Any earlier failure prints why and changes nothing.
 
-## review.py
+## Required CI checks (this repo)
 
-- CLI: `review.py <prompt-file> [--cwd <repo>] [--model opus]`; prints the reviewer's final text, then one line `[review tokens: <last-context tokens>; cost $<total_cost_usd with 2 decimals>]`.
-
-## Required CI checks
-
-`verify (macos-latest)`, `verify (ubuntu-latest)`; #8 adds `sandbox (ubuntu-bwrap)` and `sandbox (none)`.
+`verify (macos-latest)`, `verify (ubuntu-latest)`.

@@ -1,4 +1,3 @@
-import hashlib
 import contextlib
 import io
 import json
@@ -14,8 +13,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "plugins/agent-flow/scripts"))
 import land
 
-GREEN = [{"name": "verify", "state": "SUCCESS", "bucket": "pass"}]
-AUDIT = "docs/t/reviews/review-1.audit.md"
+GREEN = [{"name": "verify", "state": "SUCCESS", "bucket": "pass"}, {"name": "evidence-check", "state": "SUCCESS", "bucket": "pass"}]
 
 
 def git(cwd, *args):
@@ -23,7 +21,7 @@ def git(cwd, *args):
 
 
 class LandTest(unittest.TestCase):
-    def land(self, refuse_merge=False, behind=False, audit="Result: passed", stop=False, silent_merge=False, root_is_wt=False):
+    def land(self, refuse_merge=False, behind=False, owner_label=False, stop=False, silent_merge=False, root_is_wt=False):
         """Real git repo + bare origin + worktree on branch t/01; fake gh. Returns (code, out, env)."""
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp)
@@ -37,14 +35,6 @@ class LandTest(unittest.TestCase):
         git(root, "push", "origin", "main")
         git(root, "worktree", "add", str(wt), "-b", "t/01")
         git(wt, "push", "origin", "t/01")
-        audit_text = "# Audit\nReport sha256: %s\n%s\n" % (hashlib.sha256(b"# Review\n").hexdigest(), audit)
-        for d in [root] + ([wt] if root_is_wt else []):
-            (d / AUDIT).parent.mkdir(parents=True)
-            (d / AUDIT.replace(".audit.md", ".md")).write_text("# Review\n")
-            (d / AUDIT).write_text(audit_text)
-        if root_is_wt:
-            git(wt, "add", "docs")
-            git(wt, "commit", "-m", "audit")
         if stop:
             (root / ".agent-flow").mkdir()
             (root / ".agent-flow/STOP").write_text("")
@@ -54,11 +44,13 @@ class LandTest(unittest.TestCase):
             "#!/bin/sh\necho \"$*\" >> %s\ncase \"$*\" in\n"
             "\"pr view 7 --json headRefName,mergeStateStatus\") echo '{\"headRefName\":\"t/01\",\"mergeStateStatus\":\"%s\"}';;\n"
             "\"pr checks 7 --json name,state,bucket\") echo '%s';;\n"
-            "\"pr diff 7 --name-only\") echo '%s';;\n"
+            "\"pr view 7 --json baseRefName,headRefName,headRefOid,labels\") echo '%s';;\n"
+            "\"pr list --base t/01 --head t/01-plan --state merged --json mergeCommit\") echo '[{\"mergeCommit\":{\"oid\":\"p1\"}}]';;\n"
+            "\"api repos/{owner}/{repo}/compare/p1...abc123 --jq .files[].filename\") echo src/a.py;;\n"
             "\"pr view 7 --json headRefOid\") echo '{\"headRefOid\":\"abc123\"}';;\n"
             "\"pr merge 7 --merge --match-head-commit abc123\") %s;;\n"
             "\"pr view 7 --json state\") if [ -f %s ]; then echo '{\"state\":\"MERGED\"}'; else echo '{\"state\":\"OPEN\"}'; fi;;\n"
-            "esac\n" % (log, "BEHIND" if behind else "CLEAN", json.dumps(GREEN), AUDIT,
+            "esac\n" % (log, "BEHIND" if behind else "CLEAN", json.dumps(GREEN), json.dumps({"baseRefName": "main", "headRefName": "t/01", "headRefOid": "abc123", "labels": [{"name": "agent-flow:owner-judges"}] if owner_label else []}),
                         "echo refused >&2; exit 1" if refuse_merge else "true" if silent_merge else "touch " + str(merged), merged))
         (bindir / "gh").chmod(0o755)
         out = io.StringIO()
@@ -93,7 +85,7 @@ class LandTest(unittest.TestCase):
         self.assertTrue(all(self.branches()))
 
     def test_gate_blocked_never_merges(self):
-        code, out = self.land(audit="Result: failed")
+        code, out = self.land(owner_label=True)
         self.assertEqual(code, 1)
         self.assertIn("BLOCKED:", out)
         self.assertNotIn("pr merge", self.log)

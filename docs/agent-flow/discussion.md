@@ -92,7 +92,7 @@ Rewritten 2026-11-23 (realignment, see Decisions). This phase is the Method; rel
 
 ## Open questions
 
-- Next: cut the realignment into tickets (this repo's PRs still merge on green CI, no review/audit): step 0 Environment alignment, confirm step, Plan PR and `plan:` setting, `docs/<topic>/tickets/` layout, `merge_gate.py` locks / coverage / no-pipe / owner-judges, the Evidence check CI job instruction, removal of the audit/review/sandbox scripts and their tests and CI jobs, `references/` trimmed to what no skill covers, C1-C22 tests.
-- `parity.md` needs a pass marking rows superseded by the 2026-11-23 realignment (review, audit, canaries, tickets, records, companions).
-- Unverified until the Owner's experiment run: whether a skill shipped by another plugin can be invoked through the Skill tool, and whether reading `SKILL.md` works for `disable-model-invocation` skills from the plugin cache.
+- Realignment landed in code (step 0-8 skill text, `verify.py`, new `merge_gate.py`, audit/review/sandbox/canaries removed). Next: the Owner runs a goal in an experiment repo (C10) and reports where it gets stuck; that run also settles whether another plugin's skill can be invoked through the Skill tool and whether reading `SKILL.md` from the plugin cache works for `disable-model-invocation` skills.
+- Owner-judged ticket criteria rely on the agent adding the `agent-flow:owner-judges` label; `verify.py` lists them (`OWNER`) but `merge_gate.py` does not read tickets. Make it deterministic if the experiment shows the label being missed.
+- `parity.md` needs a pass marking rows superseded by the 2026-11-23 realignment (review, audit, canaries, tickets, records, companions), then the remaining weakened and lost rows (Boundaries A5-A7 first).
 - `agent-flow-fixture` repo still exists: deleting needs `gh auth refresh -h github.com -s delete_repo` (user's action), then `gh repo delete Rayyyyyyyyyyyyyyyyyyyy/agent-flow-fixture --yes`.

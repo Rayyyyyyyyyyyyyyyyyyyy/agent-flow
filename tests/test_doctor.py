@@ -18,7 +18,7 @@ GH = '''case "$*" in
 *permissions.push*) echo true;;
 *.private*) echo false;;
 esac'''
-GOOD = {"git": GIT, "gh": GH, "claude": "exit 0", "bwrap": "exit 0", "sandbox-exec": "exit 0"}
+GOOD = {"git": GIT, "gh": GH}
 
 
 class DoctorTest(unittest.TestCase):
@@ -72,16 +72,6 @@ class DoctorTest(unittest.TestCase):
             code, out = self.doctor()
         self.assertEqual(code, 1)
         self.assertIn("FAIL python", out)
-
-    def test_claude_missing(self):
-        code, out = self.doctor(claude=None)
-        self.assertEqual(code, 1)
-        self.assertIn("FAIL claude", out)
-
-    def test_no_sandbox_warns_only(self):
-        code, out = self.doctor(bwrap=None, **{"sandbox-exec": None})
-        self.assertEqual(code, 0)
-        self.assertIn("WARN sandbox", out)
 
     def test_no_branch_protection_warns_only(self):
         gh = GH.replace("echo false", "echo true").replace(

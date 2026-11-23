@@ -4,7 +4,6 @@ import shutil
 import subprocess
 import sys
 
-import sandbox
 
 
 def run(*cmd):
@@ -45,10 +44,6 @@ def main():
             add("WARN", "token lacks the workflow scope (HTTPS remote cannot push .github/workflows)", "gh auth refresh -s workflow")
     if sys.version_info < (3, 11):
         add("FAIL", "python %d.%d is older than 3.11" % sys.version_info[:2], "install Python 3.11 or newer")
-    if not shutil.which("claude"):
-        add("FAIL", "claude CLI not installed", "npm install -g @anthropic-ai/claude-code")
-    if not sandbox.available():
-        add("WARN", "sandbox unavailable: audits run project commands unsandboxed", "Linux: install bubblewrap (apt install bubblewrap)")
     for level, what, fix in problems:
         print(f"{level} {what}\n  Fix: {fix}")
     return 1 if any(p[0] == "FAIL" for p in problems) else 0

@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
-"""Exit 0 only when a PR may be merged: CI green, latest audit passed, no kill switch. Exit 1 blocked, 2 setup error."""
+"""Exit 0 only when the agent may merge a PR. Exit 1 blocked (one `BLOCKED:` line per reason), 2 setup error.
+
+Plan PR (head `<branch>-plan`, base `<branch>`): CI green and `plan: agent` in `.agent-flow/config`;
+otherwise the Owner merges it. Any other PR: CI green including the `evidence-check` job, a merged
+Plan PR for its head branch, and no change to a locked path since that Plan PR merged.
+Always: no `agent-flow:owner-judges` label, no kill switch.
+"""
 import argparse
-import hashlib
 import json
 import re
 import subprocess
 import sys
 from pathlib import Path
+
+LOCKED = re.compile(r"(\.agent-flow/|\.github/workflows/|docs/[^/]+/tickets/)")
+EVIDENCE_CHECK = "evidence-check"
+OWNER_LABEL = "agent-flow:owner-judges"
 
 
 def gh(*args):
@@ -17,6 +26,12 @@ def gh(*args):
         return ""
 
 
+def config(root):
+    cfg = root / ".agent-flow/config"
+    pairs = [l.split(":", 1) for l in cfg.read_text().splitlines() if ":" in l] if cfg.is_file() else []
+    return {k.strip().lower(): v.strip().lower() for k, v in pairs}
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("pr")
@@ -25,9 +40,11 @@ def main(argv=None):
     root = Path(a.repo_root)
     try:
         checks = json.loads(gh("pr", "checks", a.pr, "--json", "name,state,bucket"))
+        view = json.loads(gh("pr", "view", a.pr, "--json", "baseRefName,headRefName,headRefOid,labels"))
     except json.JSONDecodeError:
-        print("setup error: gh pr checks gave no JSON (is gh installed?)", file=sys.stderr)
+        print("setup error: gh gave no JSON (is gh installed and logged in?)", file=sys.stderr)
         return 2
+    cfg = config(root)
     blocked = []
     buckets = [c["bucket"] for c in checks]
     bad = [c["name"] for c in checks if c["bucket"] not in ("pass", "skipping")]
@@ -35,25 +52,32 @@ def main(argv=None):
         blocked.append("CI not green: " + ", ".join(bad))
     elif "pass" not in buckets:
         blocked.append("CI has no passing check")
-    rounds = {}
-    for f in gh("pr", "diff", a.pr, "--name-only").split():
-        m = re.fullmatch(r"docs/[^/]+/reviews/review-(\d+)\.audit\.md", f)
-        if m:
-            rounds[int(m[1])] = f
-    if not rounds:
-        blocked.append("no audit file in the PR")
+    if OWNER_LABEL in [l["name"] for l in view.get("labels", [])]:
+        blocked.append(f"labelled {OWNER_LABEL}: the Owner judges and merges it")
+    head = view["headRefName"]
+    if head.endswith("-plan"):
+        if cfg.get("plan") != "agent":
+            blocked.append("Plan PR: the Owner merges it (or set `plan: agent` in .agent-flow/config)")
     else:
-        f = rounds[max(rounds)]
-        lines = (root / f).read_text().splitlines() if (root / f).is_file() else []
-        report = root / f.replace(".audit.md", ".md")
-        if not lines or lines[-1] != "Result: passed":
-            blocked.append(f"latest audit did not pass: {f}")
-        elif not report.is_file() or f"Report sha256: {hashlib.sha256(report.read_bytes()).hexdigest()}" not in lines:
-            blocked.append(f"report changed after its audit, or is missing: {report.relative_to(root)}")
+        if not any(c["name"] == EVIDENCE_CHECK and c["bucket"] == "pass" for c in checks):
+            blocked.append(f"CI has no passing {EVIDENCE_CHECK} job")
+        try:
+            plans = json.loads(gh("pr", "list", "--base", head, "--head", head + "-plan", "--state", "merged",
+                                  "--json", "mergeCommit") or "[]")
+        except json.JSONDecodeError:
+            plans = []
+        if not plans:
+            blocked.append(f"no merged Plan PR ({head}-plan into {head})")
+        else:
+            # shortcut: the compare API lists at most 300 files; enough for one goal, page it if goals grow
+            files = gh("api", f"repos/{{owner}}/{{repo}}/compare/{plans[0]['mergeCommit']['oid']}...{view['headRefOid']}",
+                       "--jq", ".files[].filename").split()
+            locked = [f for f in files if LOCKED.match(f)]
+            if locked:
+                blocked.append("changes locked paths after the Plan PR (needs a new Plan PR): " + ", ".join(locked))
     if (root / ".agent-flow/STOP").exists():
         blocked.append(".agent-flow/STOP exists")
-    cfg = root / ".agent-flow/config"
-    if cfg.is_file() and any(re.fullmatch(r"\s*merge\s*:\s*never\s*", l, re.I) for l in cfg.read_text().splitlines()):
+    if cfg.get("merge") == "never":
         blocked.append(".agent-flow/config says merge: never")
     for r in blocked:
         print("BLOCKED: " + r)

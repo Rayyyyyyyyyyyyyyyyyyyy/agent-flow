@@ -1,12 +1,14 @@
 # Project records
 
-Records live in the user's repo and are versioned with the code. Work log lives in issues and PRs, not in a separate log file. Repo know-how (commands, conventions) belongs in the repo's `CLAUDE.md` or `AGENTS.md`.
+Records live in the user's repo and are versioned with the code. Work log lives in PRs, not in a separate log file. Repo know-how (commands, conventions) belongs in the repo's `CLAUDE.md` or `AGENTS.md`.
 
 | File | Holds |
 |---|---|
 | `docs/<topic>/discussion.md` | The goal record, below |
 | `docs/<topic>/spec.md` | The spec |
-| `docs/<topic>/reviews/review-<round>.md` | Review reports; audits beside them as `review-<round>.audit.md` |
+| `docs/<topic>/foundation.md` | Facts the goal rests on, each with its source |
+| `docs/<topic>/tickets/<NN>-<slug>.md` | Tickets ([tickets.md](tickets.md)) |
+| `.agent-flow/skills.md` | Which installed skill serves each step |
 | `GLOSSARY.md` | Domain terms |
 | `docs/adr/NNNN-<title>.md` | Decisions that are hard to reverse, surprising, or a real trade-off |
 
