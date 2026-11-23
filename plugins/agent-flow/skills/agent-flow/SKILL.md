@@ -21,7 +21,7 @@ Answer in the user's language. Files you write for the repo (records, tickets, P
 
 ## Boundaries
 
-These are the outer limits. The repo's own rules (flow step 3) may tighten them, never loosen them; where a repo rule conflicts with a boundary, the boundary wins. Invoking this skill in a repo is the consent to the first tier.
+These are the outer limits. The repo's own rules (written in flow step 3, Gather information) may tighten them, never loosen them; where a repo rule conflicts with a boundary, the boundary wins. Invoking this skill in a repo is the consent to the first tier.
 
 - **Do without asking**: branch, commit, push, open PRs, set up and fix CI, merge your own PRs through `land.py`, including PRs that change CI or tests.
 - **Ask first, upfront**: a method chosen to verify the work that creates external resources, runs real model calls or spends the user's usage. List it with its estimated cost in the first question round, not mid-run ([references/workflow.md](references/workflow.md) step 2).
@@ -40,20 +40,18 @@ If `.agent-flow/STOP` exists, or `.agent-flow/config` has a line `merge: never`,
 
 Detail for each step: [references/workflow.md](references/workflow.md). A step is done when its criterion holds.
 
-1. **Intake.** Classify the input as goal, direction or seed; a goal needs no reply. Create `docs/<topic>/discussion.md` with the user's words verbatim. Done: the file has the five headings from [references/records.md](references/records.md).
-2. **Finish line.** Write results, not methods, each as `- C<n> <text>` with an external `evidence:` an outside party can run or read. Done: every line has evidence.
-3. **Repo rules and verify.** Read official docs and source and the repo itself, then write this repo's own rules and verify inside Boundaries: its verify commands, the CI that runs them on every PR, whether it needs end-to-end tests (asked first if they cost usage or create external resources), and any merge conditions it adds to `merge_gate.py`'s fixed ones (CI green, audit passed, no kill switch; a repo may add conditions, never remove one). Write them into the repo's `CLAUDE.md` or `AGENTS.md`, or `docs/<topic>/` when they belong to this goal only. If no CI runs the verify commands, the CI PR is the first ticket. Done: the rules and verify commands are written, recorded in `discussion.md`, and CI is green on the default branch.
-4. **Spec and tickets.** Write `docs/<topic>/spec.md`, then one GitHub issue per verifiable behavior in the format of [references/tickets.md](references/tickets.md). Done: every issue has Scope, Out of scope, runnable Verify, Blocked by, and the ticket marker.
-5. **Clarity gate.** A fresh subagent reads only the issue files and lists what it would have to guess. Add the guesses that change a Verify result or a ticket interface; leave the rest. Run every Verify command before implementation: each must fail for the right reason or be marked as a check that already passes.
-6. **Dispatch.** One subagent per ticket (`subagent_type: agent-flow:implementer`), one git worktree each, ordered by Blocked by; independent tickets run in parallel. Each ticket ends as a PR. Done: PR open with the ticket marker and the implementer's report.
-7. **Check.** Per PR: CI green, then one independent review following [references/review.md](references/review.md), then the audit following [references/audit.md](references/audit.md). Scripts, paths relative to `${CLAUDE_PLUGIN_ROOT}`:
-   - `scripts/review.py <prompt-file> [--cwd <repo>] [--model opus]` runs the reviewer (agent `agent-flow:reviewer`); the report format is in [references/review.md](references/review.md).
-   - `scripts/audit.py <report> --repo <repo>` re-runs the report's evidence; exit 0 passed, 1 failed, 3 partly unverified.
-   - `scripts/merge_gate.py <pr-number> [--repo-root <dir>]` exit 0 mergeable, 1 blocked.
-   - `scripts/land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]` runs the gate, merges, then cleans up; exit 0 merged, 1 blocked or failed, 2 setup error.
-   These scripts may not exist yet in a checkout under construction; a missing script is a blocker to report, not to emulate.
-8. **Merge.** Run `land.py` (merge commit, no squash). Exit 1: fix the printed reasons. Then update the integration branch and unblock dependent tickets.
-9. **Report.** See Reporting.
+1. **Receive the request.** Classify the input as goal, direction or seed; a goal needs no reply. Create `docs/<topic>/discussion.md` with the user's words verbatim. Done: the file has the five headings from [references/records.md](references/records.md).
+2. **Confirm the request.** Write the finish line: results, not methods, each as `- C<n> <text>` with an external `evidence:` an outside party can run or read. Done: every line has evidence.
+3. **Gather information.** Read official docs and source and the repo itself, then write this repo's own rules and verify inside Boundaries: its verify commands, the CI that runs them on every PR, whether it needs end-to-end tests (asked first if they cost usage or create external resources), and any merge conditions it adds to `merge_gate.py`'s fixed ones (CI green, audit passed, no kill switch; a repo may add conditions, never remove one). Write them into the repo's `CLAUDE.md` or `AGENTS.md`, or `docs/<topic>/` when they belong to this goal only. If no CI runs the verify commands, the CI PR is the first ticket. Done: the rules and verify commands are written, recorded in `discussion.md`, and CI is green on the default branch.
+4. **Cut tickets.** Write `docs/<topic>/spec.md`, then one GitHub issue per verifiable behavior in the format of [references/tickets.md](references/tickets.md). Then a fresh subagent reads only the issue files and lists what it would have to guess; add the guesses that change a Verify result or a ticket interface, leave the rest. Run every Verify command before implementation: each must fail for the right reason or be marked as a check that already passes. Done: every issue has Scope, Out of scope, runnable Verify, Blocked by, and the ticket marker, and its Verify commands have been run.
+5. **Implement.** One subagent per ticket (`subagent_type: agent-flow:implementer`), one git worktree each, ordered by Blocked by; independent tickets run in parallel. Each ticket ends as a PR. Done: PR open with the ticket marker and the implementer's report.
+6. **Review.** Per PR: CI green, then one independent review following [references/review.md](references/review.md). `scripts/review.py <prompt-file> [--cwd <repo>] [--model opus]` runs the reviewer (agent `agent-flow:reviewer`); the report format is in [references/review.md](references/review.md). Done: a review report for the PR's head commit.
+7. **Audit.** Re-run the review's evidence following [references/audit.md](references/audit.md), then merge:
+   - `scripts/audit.py <report> --repo <repo>` exit 0 passed, 1 failed, 3 partly unverified.
+   - `scripts/land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]` runs `scripts/merge_gate.py` (exit 0 mergeable, 1 blocked), merges with a merge commit (no squash), then cleans up; exit 0 merged, 1 blocked or failed, 2 setup error. Exit 1: fix the printed reasons. Then update the integration branch and unblock dependent tickets.
+   Done: the PR is merged.
+
+Script paths are relative to `${CLAUDE_PLUGIN_ROOT}`. A missing script is a blocker to report, not to emulate. When every ticket is merged or stuck, report (see Reporting).
 
 ## Resume rule
 
@@ -69,7 +67,7 @@ Skills such as `grilling`, `to-spec`, `to-tickets`, `tdd`, `implement-spec`, `pr
 | `to-spec` | Write `spec.md` with: Problem, Solution, User stories, Implementation decisions, Testing decisions, Out of scope. |
 | `to-tickets` | Cut issues by [references/tickets.md](references/tickets.md). |
 | `tdd` | Write the failing Verify check first, see it fail, then implement. |
-| `implement-spec` | Dispatch step 6 as written. |
+| `implement-spec` | Implement as step 5 says. |
 | `pr` | Body: what changed, how it was checked (commands and results), `Closes #<n>`, the marker. |
 
 List the fallbacks you took in the final report.
