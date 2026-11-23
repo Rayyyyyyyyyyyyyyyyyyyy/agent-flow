@@ -30,6 +30,7 @@ Find the repo's verify commands in its `package.json`, CI config, `CLAUDE.md` or
 - Verify commands: what proves a change works here (tests, build, lint, type check). Prefer what the repo already runs.
 - End-to-end tests: only when the repo needs them; many do not. A method that spends usage or creates external resources is asked first, with its cost.
 - Merge conditions: `merge_gate.py` always requires CI green, a passed audit and no kill switch. The repo may add conditions; it may not remove one.
+- Audit rules and trap reports: write the project's audit rules to `.agent-flow/auditor/RULES.md` (for each finish-line item, what evidence is on point and how deep to check; what fake evidence looks like here) and trap reports built from this repo's own code to `.agent-flow/auditor/canaries/` ([audit.md](audit.md)). Show the trap reports and their expected results to the user for approval; running them spends model usage, so it is asked upfront.
 - Where: lasting rules go in the repo's `CLAUDE.md` or `AGENTS.md`; rules for this goal only go in `docs/<topic>/`. Record what you wrote under Decisions. If PRs have no CI running them, adding CI is ticket 01: CI runs only the verify commands, with no deploy and no secrets. If the default branch has no rule requiring a PR and green CI, set it when the plan allows (`gh api` branch protection); if not allowed, say so in Decisions, and `merge_gate.py` is the guard.
 
 Missing infrastructure that blocks evidence (raw data or logs, version and commit mapping, a reproducible environment) becomes early tickets. Using secrets, money or the user's own data, a need for accounts you do not have, and browser use go to the user first (Boundaries, Ask first).
@@ -66,4 +67,4 @@ Landing is one call: `land.py <pr> [--worktree <dir>] [--repo-root <dir>]` runs 
 
 ## Report
 
-Close with: finish line items, each with its evidence and result; which checks failed or did not run; what was merged; guesses taken and fallbacks used; number of questions to the user and the reason for each. Format: [grounded-answer.md](grounded-answer.md).
+First run `pending_audits.py <repo>`; anything it lists blocks the wrap-up. Close with: finish line items, each with its evidence and result; which checks failed or did not run; what was merged; guesses taken and fallbacks used; number of questions to the user and the reason for each; how many review rounds had a FAIL; each `.audit.md` with its result, for the user to spot-check. Format: [grounded-answer.md](grounded-answer.md).

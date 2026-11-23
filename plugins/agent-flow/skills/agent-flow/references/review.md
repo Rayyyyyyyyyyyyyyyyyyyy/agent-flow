@@ -28,7 +28,7 @@ Save to `docs/<topic>/reviews/review-<round>.md`, in this format:
 ```
 # Review: <topic> round <n>
 
-Reviewer model: <model>
+Reviewer model: <haiku, sonnet or opus; the audit judges one tier up>
 Reviewed commit: <full sha>
 Base: <full sha>            (optional)
 

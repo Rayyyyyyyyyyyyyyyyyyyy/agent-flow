@@ -63,9 +63,21 @@ Output contains: `<text>`
 
 ## audit.py
 
-- CLI: `audit.py <report> --repo <repo> [--unsandboxed] [--model <model>]`.
-- Exit codes: 0 passed, 1 failed, 3 partly unverified, 2 usage or setup error (bad report path, git failure).
-- Output file: `<report without .md>.audit.md`. First line `# Audit: <report file name>`. Contains `Plugin version: <version from plugin.json>` and, with `--unsandboxed`, the line `WARNING: project commands ran without a sandbox`. Unverified commands are listed under `## Run these yourself`. Last line exactly `Result: passed`, `Result: failed` or `Result: partly unverified`.
+- CLI: `audit.py <report> --repo <repo> [--unsandboxed] [--model]`. `--model` lets the model judge a report without a rebuttal; a report with a rebuttal is always judged by the model.
+- `Reviewer model:` must name a tier (`haiku`, `sonnet`, `opus`, as a substring). The judging model is one tier up (haiku→sonnet, sonnet→opus, opus→opus), opus when there is a rebuttal.
+- Rules: `plugins/agent-flow/auditor/RULES.md`, then the project's `.agent-flow/auditor/RULES.md` read with `git show <origin default branch>:<path>` after `git fetch origin` (no origin: baseline only; fetch failure: exit 2). Prompt order: rules, `# Report under audit`, report, `# Rerun log`, log, `# Diff`, `git diff <base> <commit>` or `git show <commit>` (≤ 200,000 characters).
+- Model reply: one line per item `<ID>: upheld|not upheld|insufficient evidence - <basis>`, per rebuttal `Rebuttal <ID>: ...`, at most one `Result: passed|failed`. Passes only when every item (rebutted FAILs via their rebuttal) is `upheld`, no item is judged twice, and any Result line says passed.
+- Trap gate: when `<repo>/.agent-flow/auditor/canaries/expected.json` exists and `<repo>/.agent-flow/auditor/canary-stamp.txt` differs from `audit.stamp(repo, rules)` (sha256 of rules, `claude --version`, tier map, `audit.py`, every file under `canaries/`), exit 2 naming `canaries.py`.
+- Exit codes: 0 passed, 1 failed, 3 partly unverified, 2 usage or setup error (bad report path, git failure, trap gate).
+- Output file: `<report without .md>.audit.md`. First line `# Audit: <report file name>`. Then, with `--unsandboxed`, the line `WARNING: project commands ran without a sandbox`; `Plugin version: <version from plugin.json>`, `Report sha256: <hex>`, `Reviewed commit:`, `Rules: <sources>`, `Model: <model or none>`; sections `## Problems`, `## Rerun log`, `## Model verdict`, and `## Run these yourself` listing unverified commands. Last line exactly `Result: passed`, `Result: failed` or `Result: partly unverified`.
+
+## canaries.py
+
+- CLI: `canaries.py --repo <repo> [--force]`. Reads `<repo>/.agent-flow/auditor/canaries/expected.json` (`{"<report>.md": "passed"|"failed"}`), audits a copy of each report (outside the repo) against `<repo>` on the model path, prints `OK` or `MISS` per report. Exit 0 all matched and the stamp was written, 1 a mismatch (no stamp), 2 setup error. Skips with exit 0 when the stamp already matches, unless `--force`.
+
+## pending_audits.py
+
+- CLI: `pending_audits.py [repo]`. In every worktree, the latest `docs/*/reviews/review-<n>.md` per directory must have a `.audit.md` with the line `Report sha256: <its current sha256>` and last line `Result: passed`. Exit 0 none pending, 1 pending (one line each).
 
 ## sandbox.py
 
@@ -77,7 +89,7 @@ Output contains: `<text>`
 
 - CLI: `merge_gate.py <pr-number> [--repo-root <dir>]`; exit 0 mergeable, 1 blocked (reasons printed one per line, each starting `BLOCKED:`), 2 setup error.
 - CI: `gh pr checks <n> --json name,state,bucket`; green when every bucket is `pass` or `skipping` and at least one is `pass`.
-- Audit: among files changed in the PR (`gh pr diff <n> --name-only`) matching `docs/*/reviews/review-*.audit.md`, take the highest round; its last line must be `Result: passed`.
+- Audit: among files changed in the PR (`gh pr diff <n> --name-only`) matching `docs/*/reviews/review-*.audit.md`, take the highest round; its last line must be `Result: passed` and it must contain `Report sha256: <sha256 of review-<n>.md in --repo-root>`.
 - Kill switch: read from `--repo-root` (default cwd): `.agent-flow/STOP` exists, or `.agent-flow/config` has a line `merge: never`.
 
 ## land.py
