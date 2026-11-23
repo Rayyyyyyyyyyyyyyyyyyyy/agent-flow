@@ -1,10 +1,8 @@
 import contextlib
-import hashlib
 import io
 import json
 import os
 import shutil
-import stat
 import sys
 import tempfile
 import unittest
@@ -14,24 +12,29 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "plugins/agent-flow/scripts"))
 import merge_gate
 
-GREEN = [{"name": "verify", "state": "SUCCESS", "bucket": "pass"}, {"name": "x", "state": "SKIPPED", "bucket": "skipping"}]
-AUDIT = "docs/t/reviews/review-%d.audit.md"
+GREEN = [{"name": "verify", "state": "SUCCESS", "bucket": "pass"},
+         {"name": "evidence-check", "state": "SUCCESS", "bucket": "pass"},
+         {"name": "x", "state": "SKIPPED", "bucket": "skipping"}]
+PLAN = [{"mergeCommit": {"oid": "plan1"}}]
+
+
+def fake_gh(bindir, checks, head="agent-flow/t", labels=(), plans=PLAN, changed=("src/a.py",)):
+    view = {"baseRefName": "main", "headRefName": head, "headRefOid": "head1",
+            "labels": [{"name": l} for l in labels]}
+    (bindir / "gh").write_text(
+        "#!/bin/sh\ncase \"$*\" in\n"
+        "\"pr checks 7 --json name,state,bucket\") echo '%s';;\n"
+        "\"pr view 7 --json baseRefName,headRefName,headRefOid,labels\") echo '%s';;\n"
+        "\"pr list --base %s --head %s-plan --state merged --json mergeCommit\") echo '%s';;\n"
+        "\"api repos/{owner}/{repo}/compare/plan1...head1 --jq .files[].filename\") printf '%s\\n';;\n"
+        "esac\n" % (json.dumps(checks), json.dumps(view), head, head, json.dumps(plans), "\\n".join(changed)))
+    (bindir / "gh").chmod(0o755)
 
 
 class MergeGateTest(unittest.TestCase):
-    def gate(self, checks=GREEN, audits=None, stop=False, config=None, gh=True, edit_report=False):
-        """audits: {round: last line}; the diff lists every round. Returns (exit code, output)."""
+    def gate(self, checks=GREEN, stop=False, config=None, gh=True, **kw):
         root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, root)
-        audits = {1: "Result: passed"} if audits is None else audits
-        for n, last in audits.items():
-            p = root / (AUDIT % n)
-            p.parent.mkdir(parents=True, exist_ok=True)
-            report = p.with_name("review-%d.md" % n)
-            report.write_text("# Review\n")
-            p.write_text("# Audit\nReport sha256: %s\n%s\n" % (hashlib.sha256(report.read_bytes()).hexdigest(), last))
-            if edit_report:
-                report.write_text("# Review, edited after the audit\n")
         (root / ".agent-flow").mkdir()
         if stop:
             (root / ".agent-flow/STOP").write_text("")
@@ -40,48 +43,58 @@ class MergeGateTest(unittest.TestCase):
         bindir = root / "bin"
         bindir.mkdir()
         if gh:
-            diff = "\n".join(["src/a.py"] + [AUDIT % n for n in audits])
-            (bindir / "gh").write_text(
-                "#!/bin/sh\ncase \"$*\" in\n"
-                "\"pr checks 7 --json name,state,bucket\") echo '%s';;\n"
-                "\"pr diff 7 --name-only\") echo '%s';;\nesac\n" % (json.dumps(checks), diff))
-            (bindir / "gh").chmod(0o755)
+            fake_gh(bindir, checks, **kw)
         out = io.StringIO()
         with mock.patch.dict(os.environ, {"PATH": str(bindir)}), contextlib.redirect_stdout(out):
             code = merge_gate.main(["7", "--repo-root", str(root)])
         return code, out.getvalue()
 
     def test_passes(self):
-        self.assertEqual(self.gate()[0], 0)
+        self.assertEqual(self.gate(), (0, ""))
 
     def test_failing_check_blocks(self):
         code, out = self.gate(checks=GREEN + [{"name": "bad", "state": "FAILURE", "bucket": "fail"}])
         self.assertEqual(code, 1)
-        self.assertIn("BLOCKED:", out)
+        self.assertIn("BLOCKED: CI not green: bad", out)
 
     def test_pending_check_blocks(self):
         self.assertEqual(self.gate(checks=GREEN + [{"name": "p", "state": "PENDING", "bucket": "pending"}])[0], 1)
 
     def test_no_passing_check_blocks(self):
-        self.assertEqual(self.gate(checks=[GREEN[1]])[0], 1)
+        self.assertEqual(self.gate(checks=[GREEN[2]])[0], 1)
 
-    def test_failed_audit_blocks(self):
-        self.assertEqual(self.gate(audits={1: "Result: failed"})[0], 1)
-
-    def test_partly_unverified_audit_blocks(self):
-        self.assertEqual(self.gate(audits={1: "Result: partly unverified"})[0], 1)
-
-    def test_missing_audit_blocks(self):
-        self.assertEqual(self.gate(audits={})[0], 1)
-
-    def test_latest_round_decides(self):
-        self.assertEqual(self.gate(audits={1: "Result: failed", 2: "Result: passed"})[0], 0)
-        self.assertEqual(self.gate(audits={2: "Result: passed", 10: "Result: failed"})[0], 1)
-
-    def test_report_edited_after_audit_blocks(self):
-        code, out = self.gate(edit_report=True)
+    def test_missing_evidence_check_blocks(self):
+        code, out = self.gate(checks=[GREEN[0]])
         self.assertEqual(code, 1)
-        self.assertIn("changed after its audit", out)
+        self.assertIn("evidence-check", out)
+
+    def test_no_merged_plan_blocks(self):
+        code, out = self.gate(plans=[])
+        self.assertEqual(code, 1)
+        self.assertIn("no merged Plan PR", out)
+
+    def test_locked_paths_after_plan_block(self):
+        for path in (".agent-flow/verify.py", ".github/workflows/ci.yml", "docs/t/tickets/01-a.md"):
+            code, out = self.gate(changed=("src/a.py", path))
+            self.assertEqual(code, 1, path)
+            self.assertIn("changes locked paths", out)
+            self.assertIn(path, out)
+
+    def test_unlocked_docs_pass(self):
+        self.assertEqual(self.gate(changed=("docs/t/discussion.md", "docs/t/foundation.md"))[0], 0)
+
+    def test_plan_pr_needs_owner(self):
+        code, out = self.gate(head="agent-flow/t-plan", checks=[GREEN[0]])
+        self.assertEqual(code, 1)
+        self.assertIn("Plan PR: the Owner merges it", out)
+
+    def test_plan_pr_with_plan_agent(self):
+        self.assertEqual(self.gate(head="agent-flow/t-plan", checks=[GREEN[0]], config="plan: agent\n")[0], 0)
+
+    def test_owner_judges_label_blocks(self):
+        code, out = self.gate(labels=["agent-flow:owner-judges"])
+        self.assertEqual(code, 1)
+        self.assertIn("owner-judges", out)
 
     def test_stop_file_blocks(self):
         self.assertEqual(self.gate(stop=True)[0], 1)
@@ -97,7 +110,7 @@ class MergeGateTest(unittest.TestCase):
         self.assertEqual(self.gate(config="merge: auto\n")[0], 0)
 
     def test_reasons_one_per_line(self):
-        code, out = self.gate(audits={1: "Result: failed"}, stop=True)
+        code, out = self.gate(plans=[], stop=True)
         self.assertEqual([l[:8] for l in out.splitlines()], ["BLOCKED:"] * 2)
 
     def test_setup_error_without_gh(self):

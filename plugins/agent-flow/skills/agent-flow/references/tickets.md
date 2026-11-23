@@ -1,45 +1,44 @@
 # Tickets
 
-A ticket is one verifiable behavior, written so an implementer with no other context can do it and a reviewer can check it.
+A ticket is one verifiable behavior, written so an implementer with no other context can do it and a script can check it. Whatever skill cuts the tickets, the files must follow this format: `verify.py` reads it. A front-end page is usually one ticket per component plus one ticket that assembles the page, blocked by them.
 
 ## Where
 
-- Repo has a GitHub remote and `gh` is logged in: one GitHub issue per ticket.
-- Otherwise (local fallback): one file per ticket at `docs/<topic>/issues/<NN>-<slug>.md`, numbered from `01`, with a `Status:` line near the top (`open`, `claimed`, `done`) and comments appended under `## Comments`. Resolving a ticket sets `Status: done` and appends the commit.
+One file per ticket at `docs/<topic>/tickets/<NN>-<slug>.md`, numbered from `01` in dependency order (blockers first). Files are the source of truth; a GitHub issue, if the repo wants one, only links to the file. The directory is locked once the Plan PR merges (SKILL.md, Locks).
 
-## Marker
-
-Every issue (or file) and every PR body contains `<!-- agent-flow:<topic>#<NN> -->` with `<NN>` the two-digit ticket number. Before creating one, search for the marker and reuse a match. Search: `gh issue list --state all --search '"agent-flow:<topic>#<NN>" in:body'` and `gh pr list --state all --search '"agent-flow:<topic>#<NN>" in:body'`; in the local fallback, grep `docs/<topic>/issues/`.
-
-## Required fields
+## Format
 
 ```markdown
-**What to build:** the behavior, end to end, in a few sentences.
+# <imperative title naming the behavior>
 
-**Blocked by:** #<n>, or "none".
+Blocked by: 02, 03 | none
 
-**Scope:** files or modules the work may touch.
+## What to build
 
-**Out of scope:** what the implementer must not do.
+The behavior, end to end, in a few sentences. Facts it rests on: foundation.md lines it cites.
 
-- [ ] acceptance criterion, observable
+## Scope
 
-**Verify:**
-- `<command run as written>` -> <result that means PASS>
+Files or modules the work may touch.
 
-<!-- agent-flow:<topic>#<NN> -->
+## Out of scope
+
+What the implementer must not do.
+
+## Acceptance
+
+- [ ] <observable criterion>
+  Verify: `<command>`
+- [ ] <criterion only a person can judge>
+  Owner judges: <what to look at and what counts as pass>
 ```
 
-- Title: imperative, names the behavior.
-- Verify: every command runs as written from the repo root and says what PASS looks like. A check that needs a person or a browser says so and says how.
-- A ticket that changes a user interface lists how it handles waiting, empty results, failure, repeated actions, keyboard operation, and where focus lands after re-render.
-- Tickets that change CI or tests are ordinary tickets; the agent merges them.
-- A ticket with no code (docs, config) needs no test-first step.
+## Verify commands
 
-## Dispatch message to the implementer
-
-Only: ticket location (issue number or file path), `docs/<topic>/discussion.md` path, working directory, integration branch, verify commands. Always include: "Any judgment or 'I guess' you make yourself, however small, counts as a guess, so the status cannot be DONE."
-
-Report back: status (`DONE`, `GUESSED`, `BLOCKED`), PR URL, commit, each Verify command with its result, the guess list, what was not verified.
-
-Handling a report: judge each guess. Correct guesses go into the ticket as a comment; wrong ones: revert those commits, fix the ticket, re-dispatch. `GUESSED` with all guesses correct counts as `DONE`. `BLOCKED` goes back to cutting tickets (step 4). A second `BLOCKED`, or a second revert, on one ticket means stuck.
+- Each criterion has at least one `Verify:` line, or one `Owner judges:` line. `verify.py --check-only` rejects a criterion with neither.
+- The exit code alone decides: 0 is PASS. One command, run as written from the repo root without a shell: no `|`, `;`, `&`, `>`, `<`, `$(`, `$?`, and no `sh -c` wrapper. Put a multi-step check in a script in the repo and call it.
+- The command tests the behavior, not that a string exists in a file.
+- Before implementation it fails for the reason the criterion states; it finishes by itself and leaves no server or process running.
+- A ticket that changes a user interface has criteria for waiting, empty results, failure, repeated actions, keyboard operation, and where focus lands after re-render.
+- `Owner judges:` is the exception. Any PR carrying such a criterion gets the label `agent-flow:owner-judges`; the user judges and merges it.
+- A ticket with no code (docs, config) still has a Verify command (a check or a build); it needs no test-first step.
