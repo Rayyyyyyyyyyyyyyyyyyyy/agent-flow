@@ -1,8 +1,0 @@
-version: 0.0.0
-clean-all.md: ok
-clean-dismissal.md: ok
-flawed-pass-no-evidence.md: ok
-flawed-fabricated-output.md: ok
-flawed-dismissed-valid-fail.md: ok
-flawed-unsupported-refutation.md: ok
-flawed-malformed-heading.md: ok

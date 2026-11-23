@@ -26,7 +26,6 @@ A developer who uses Claude Code can get code written, but not a finished, check
 14. As a developer, I want to re-run after a crash without duplicate issues or PRs.
 15. As a developer, I want to see what the run cost.
 16. As a maintainer, I want the shipped text free of personal data and third-party skills, so that the license is clean.
-17. As a maintainer, I want canaries (trap reports for the auditor) to run on my machine before a release, not on every user's machine.
 
 ## Implementation Decisions
 
@@ -36,7 +35,7 @@ A developer who uses Claude Code can get code written, but not a finished, check
 - Boundaries (C6): do / ask first / never, plus the kill switch; project rules may tighten, never loosen. CI and test changes are merged by the agent like any other PR.
 - Merge gate: a script decides mergeability: CI green (via `gh`), latest audit passed with no `unverified`, no `.agent-flow/STOP`, `merge` not `never` in `.agent-flow/config`. Branch protection is set when the plan allows; otherwise the gate script is the only guard and doctor says so.
 - Audit: evidence kinds are file position (read directly), read-only commands from an argv allowlist (run with `shell=False`), and project commands (run only inside a sandbox: macOS Seatbelt, Linux bwrap, one module). Without a sandbox, project commands are `unverified`. Rules come from the installed plugin version, recorded in `.audit.md`. No `claude` call on the deterministic path.
-- Canaries: maintainer-only script, run before tagging; stamp ships in the plugin.
+- Trap reports (canaries) are per project: the calling repo's agent plants flaws in that repo's own code; the plugin ships none (2026-11-23).
 - Cost: `review.py` prints tokens and $; interactive users use `/cost`.
 - v0.1 ships two roles: implementer and reviewer.
 

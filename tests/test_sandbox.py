@@ -98,7 +98,7 @@ class NoSandbox(unittest.TestCase):
             report.write_text(f"# Review: t round 1\n\nReviewer model: opus\nReviewed commit: {g('rev-parse', 'HEAD')}\n\n"
                               "### C1 — PASS\nCriterion: x\nCommand: `python3 hello.py`\nOutput contains: `hello 42`\n")
             done = subprocess.run([sys.executable, str(Path(__file__).resolve().parents[1] / "plugins/agent-flow/scripts/audit.py"), str(report), "--repo", str(repo)],
-                                  capture_output=True, text=True, env=dict(os.environ, AGENT_FLOW_SKIP_STAMP="1"))
+                                  capture_output=True, text=True)
             self.assertEqual(done.returncode, 3, done.stderr)
             self.assertEqual((Path(tmp) / "review-1.audit.md").read_text().splitlines()[-1], "Result: partly unverified")
 

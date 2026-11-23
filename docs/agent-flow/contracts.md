@@ -64,7 +64,7 @@ Output contains: `<text>`
 ## audit.py
 
 - CLI: `audit.py <report> --repo <repo> [--unsandboxed] [--model <model>]`.
-- Exit codes: 0 passed, 1 failed, 3 partly unverified, 2 usage or setup error (bad report path, stamp mismatch, git failure).
+- Exit codes: 0 passed, 1 failed, 3 partly unverified, 2 usage or setup error (bad report path, git failure).
 - Output file: `<report without .md>.audit.md`. First line `# Audit: <report file name>`. Contains `Plugin version: <version from plugin.json>` and, with `--unsandboxed`, the line `WARNING: project commands ran without a sandbox`. Unverified commands are listed under `## Run these yourself`. Last line exactly `Result: passed`, `Result: failed` or `Result: partly unverified`.
 
 ## sandbox.py
@@ -88,11 +88,6 @@ Output contains: `<text>`
 ## review.py
 
 - CLI: `review.py <prompt-file> [--cwd <repo>] [--model opus]`; prints the reviewer's final text, then one line `[review tokens: <last-context tokens>; cost $<total_cost_usd with 2 decimals>]`.
-
-## Canary stamp
-
-- `plugins/agent-flow/auditor/canary-stamp.txt`: line 1 `version: <plugin version>`, then one line per canary `<name>: ok`.
-- audit.py exits 2 with `canary stamp is for <x>, plugin is <y>; maintainer must run scripts/run_canaries.py` when versions differ. Tests that are not about the stamp set `AGENT_FLOW_SKIP_STAMP=1`.
 
 ## Required CI checks
 
