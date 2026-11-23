@@ -1,55 +1,57 @@
 # Spec: agent-flow v0.1
 
+Rewritten 2026-11-23 (realignment). Vocabulary: `GLOSSARY.md`. Decisions: `docs/agent-flow/discussion.md`, `docs/adr/`.
+
 ## Problem Statement
 
-A developer who uses Claude Code can get code written, but not a finished, checked change: nobody writes the finish line, splits the work, keeps implementation and review in separate contexts, re-runs the review's evidence, or merges only when the gates are green. The author's method that does this lives in one private-feeling repo (skill-workflow) and only works when a session is opened there.
+The Owner can get code written by Claude Code, but not a finished, checked change: nobody writes the finish line, grounds the work in sourced facts, splits it into tickets that can run in parallel, keeps the tests fixed so they cannot be bent to go green, or merges only when the evidence passes. The Owner's method that does this (skill-workflow) only works inside its own repo, re-implements steps that installed skills already do, spends too many tokens on review, and lets the reviewer choose its own evidence.
 
 ## Solution
 
-`agent-flow` is a public Claude Code plugin. A developer installs it once, opens Claude Code in their own repo and runs `/agent-flow:agent-flow <goal>`. The agent writes the finish line into `docs/<topic>/discussion.md`, adds CI if missing, cuts GitHub issues, dispatches an implementer subagent per ticket in its own worktree, runs the deterministic gate, one independent reviewer, an audit that re-runs the reviewer's evidence, and merges. The plugin ships outer boundaries that no project rule may loosen, and tells the agent to write the calling repo's own rules and verify inside them. It asks before actions that affect other people and before using secrets, spending money or deleting the user's own data, and stops merging when a kill switch is present. All of this runs in the calling repo; this repo only provides it.
+`agent-flow` is a Claude Code plugin. The Owner (first user; others are a by-product) installs it and runs `/agent-flow:agent-flow <goal>` in a Calling repo. The Method runs there:
+
+0. Environment alignment: list the installed skills and agents, pick one per step with a reason, write the settings they need, record `.agent-flow/skills.md`; `doctor.py` checks the tools.
+1. Receive the request (a vague one is grilled first).
+2. Gather facts into `docs/<topic>/foundation.md`, each with a source; unsourced facts are assumptions.
+3. Confirm the task list and re-confirm the goal with the Owner, in conversation.
+4. Cut tickets into `docs/<topic>/tickets/`, every criterion with a Verify command; open the Plan PR (finish line, Foundation, rules, tickets), merged by the Owner unless `plan: agent`.
+5. Implement with the chosen implementation skill: ready tickets in parallel, one integration branch and one PR per goal.
+6. Review with the chosen review skill, once, reporting cumulative tokens.
+7. Evidence check: CI runs every locked Verify command.
+8. Merge through `merge_gate.py` and `land.py`.
+
+agent-flow itself owns only what no skill provides: the Boundaries, the Plan PR gate, the locks, the Evidence check rules, `merge_gate.py`/`land.py`, `doctor.py`, and the order of steps.
 
 ## User Stories
 
-1. As a developer, I want to install the plugin with two commands, so that I can try it in minutes.
-2. As a developer, I want a `doctor` check that tells me exactly what is missing and how to fix it, so that I do not fail halfway through a run.
-3. As a developer, I want to give a goal in one sentence and get a written finish line with external evidence per line, so that "done" is checkable.
-4. As a developer, I want my project record to live in my repo (`docs/<topic>/discussion.md`, `GLOSSARY.md`, `docs/adr/`), so that it is versioned with the code.
-5. As a developer, I want the agent to add CI when my repo has none, so that every PR is verified.
-6. As a developer, I want tickets as GitHub issues with scope, out-of-scope and runnable verify commands, so that I can follow progress where I already work.
-7. As a developer, I want each ticket implemented in its own worktree by a subagent, so that parallel work does not collide.
-8. As a developer, I want one independent reviewer and an audit that re-runs the reviewer's evidence, so that a review cannot pass on claims alone.
-9. As a developer, I want audit to work on macOS and Linux, and to say "unverified" instead of "passed" when it cannot sandbox project code, so that I am never misled.
-10. As a developer, I want the agent to merge its own PRs when the gates pass, without asking me, so that the flow finishes unattended.
-11. As a developer, I want to be asked before the agent uses secrets, spends money or deletes my own data, so that nothing surprising happens.
-12. As a developer, I want the agent to stop and ask before anything that affects other people (deploys, other people's repos, notifications), so that I stay responsible for those.
-13. As a developer, I want a STOP file or `merge: never` setting, so that I can keep PRs open for my own review.
-14. As a developer, I want to re-run after a crash without duplicate issues or PRs.
-15. As a developer, I want to see what the run cost.
-16. As a maintainer, I want the shipped text free of personal data and third-party skills, so that the license is clean.
+1. As the Owner, I want to call the Method from any of my repos with one slash command, so that I do not have to open skill-workflow.
+2. As the Owner, I want the agent to use the skills I already have installed for each step, so that nothing is reinvented and better skills apply as I install them.
+3. As the Owner, I want every fact the work rests on to carry its source, so that implementation is grounded.
+4. As the Owner, I want to confirm the task list and goal before tickets are cut, so that the run does what I meant.
+5. As the Owner, I want to see every Verify command in the Plan PR before anything is built, so that I approve the test, not just the code.
+6. As the Owner, I want Verify commands locked once merged, so that no agent can change the rules to make a gate pass.
+7. As the Owner, I want ready tickets implemented in parallel, so that the goal finishes sooner.
+8. As the Owner, I want one review per goal that only judges what a script cannot, so that review costs fewer tokens.
+9. As the Owner, I want CI to re-run every Verify command and the merge gate to refuse missing or weakened evidence, so that a pass means a pass.
+10. As the Owner, I want criteria only I can judge kept out of agent merges, so that nothing unjudged lands.
+11. As the Owner, I want to be asked before anything that affects other people, secrets, money or my own data, and a STOP file or `merge: never` to stop merges.
+12. As the Owner, I want to re-run after a crash without duplicate tickets, branches or PRs.
 
 ## Implementation Decisions
 
-- Repo layout: the repo is the marketplace (`.claude-plugin/marketplace.json`, name `agent-flow`); the plugin lives in `plugins/agent-flow/` (`.claude-plugin/plugin.json`, `skills/agent-flow/SKILL.md` + `references/`, `agents/`, `scripts/`). Repo-level tooling (`scripts/check_package.py`, `tests/`, CI) stays outside the plugin directory.
-- Source of the method: skill-workflow at commit 31114d7 (`CLAUDE.md`, `method/WORKFLOW.md`, `method/AUDIT.md`, `method/agents/issue-tracker.md`, `method/policies/P00-GROUNDED-ANSWER.md`, `.claude/agents/implementer.md`, `.claude/agents/reviewer.md`, `scripts/review.py`, `scripts/audit.py`, `scripts/audit_canary.py`, `.claude/auditor/`). Port, generalise, translate to English; drop personal settings.
-- Records: `docs/<topic>/discussion.md` (verbatim words, finish line, authorizations, decisions, open questions/frontier), `docs/<topic>/spec.md`, `GLOSSARY.md`, `docs/adr/`; work log in issues and PRs. Review reports and `.audit.md` live in `docs/<topic>/reviews/`.
-- Boundaries (C6): do / ask first / never, plus the kill switch; project rules may tighten, never loosen. CI and test changes are merged by the agent like any other PR.
-- Merge gate: a script decides mergeability: CI green (via `gh`), latest audit passed with no `unverified`, no `.agent-flow/STOP`, `merge` not `never` in `.agent-flow/config`. Branch protection is set when the plan allows; otherwise the gate script is the only guard and doctor says so.
-- Audit: evidence kinds are file position (read directly), read-only commands from an argv allowlist (run with `shell=False`), and project commands (run only inside a sandbox: macOS Seatbelt, Linux bwrap, one module). Without a sandbox, project commands are `unverified`. Rules come from the installed plugin version, recorded in `.audit.md`. No `claude` call on the deterministic path.
-- Trap reports (canaries) are per project: the calling repo's agent plants flaws in that repo's own code; the plugin ships none (2026-11-23).
-- Cost: `review.py` prints tokens and $; interactive users use `/cost`.
-- v0.1 ships two roles: implementer and reviewer.
+- Repo layout unchanged: the repo is the marketplace; the plugin lives in `plugins/agent-flow/`; repo tooling (`scripts/`, `tests/`, CI) stays outside it.
+- Base: skill-workflow `31114d7`, frozen. Port faithfully; change only on the Owner's request or when a real run gets stuck.
+- Skills are chosen per Calling repo from its environment, never bundled or declared as dependencies (ADR 0002). Non-invocable skills are followed by reading their `SKILL.md`.
+- Tickets are repo files; GitHub issues, if used, only track status.
+- Verify commands are fixed in the Plan PR and locked; the Evidence check is a CI job; `merge_gate.py` refuses: locked paths touched, a criterion without a Verify command, pipes / `;` / `$?` in a Verify command, the Evidence check job not green, an unapproved Plan PR, the `agent-flow:owner-judges` label, the kill switch (ADR 0001).
+- Removed: `audit.py`, `sandbox.py`, `canaries.py`, `pending_audits.py`, `review.py`, `agents/reviewer.md`, `agents/implementer.md`, and `references/` text that a chosen skill covers.
 
 ## Testing Decisions
 
-- Unit tests (`python3 -m unittest`) for every script: package checks, discussion checker, doctor checks, audit evidence parsing / allowlist / three states / sandbox detection, merge gate, review/audit version anchor.
-- CI matrix macOS + Ubuntu; one Ubuntu job installs bwrap and must execute the sandbox path; one job without sandbox asserts `unverified` and a blocked merge.
-- No end-to-end harness: E2E is a per-project choice (2026-11-20). Criteria a script cannot check are `evidence: user judges`.
-- Prior art: skill-workflow `tests/` (portability, review, audit tests).
+- Unit tests (`python3 -m unittest`) for every script: package checks, discussion checker, doctor checks, merge gate (each refusal), rule greps for each finish-line item a script cannot run.
+- CI matrix macOS + Ubuntu, plus the fresh-HOME install job.
+- No end-to-end harness here: the Owner's experiment-repo run is the proof (C10).
 
 ## Out of Scope
 
-Designer, writer, researcher, planner roles; srt; native Windows (WSL2 documented); retro and method log; integration with agency-agents or grilling; upgrade migration; uninstall beyond a README section.
-
-## Further Notes
-
-Finish line and decisions: `docs/agent-flow/discussion.md`. Sandbox research: `docs/research/sandbox-for-audit-reruns.md`.
+Release polish (#13: README Quick Start for strangers, CHANGELOG, tag, pinned install) until the Method is done; native Windows (WSL2 documented); upgrade migration; uninstall beyond a README section.
