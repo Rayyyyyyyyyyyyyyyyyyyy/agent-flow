@@ -77,26 +77,58 @@ class Method(unittest.TestCase):
         self.assertIn("evidence-check:", WORKFLOW)
         self.assertIn("python3 .agent-flow/verify.py", WORKFLOW)
 
-    def test_apply_in_parallel(self):
+    def test_apply_one_group_first(self):  # P1
         s = step(5)
-        for t in ["run in parallel, one subagent and one worktree each", "for its group only", "test-first"]:
+        for t in ["one task group at a time", "run in parallel, one subagent and one worktree each",
+                  "only when `.agent-flow/config` has `apply: parallel`", "for its group only", "test-first"]:
             self.assertIn(t, s)
-        self.assertIn("`Blocked by: 1, 2`", WORKFLOW)
+        for t in ["`Blocked by: 1, 2`", "Task groups run one at a time", "one agent delivers mergeable work before many"]:
+            self.assertIn(t, WORKFLOW)
+        self.assertIn("parallel apply can now be switched on", SKILL)
+
+    def test_briefs_and_reports(self):  # P4
+        for t in ["$(git rev-parse --git-common-dir)/agent-flow/<topic>/", "`group-N-brief.md`", "`group-N-report.md`",
+                  "Never paste earlier groups' history", "starts no subagents of its own",
+                  "returns only the status, the commit, one line of test results and its concerns"]:
+            self.assertIn(t, WORKFLOW)
+
+    def test_fix_loop(self):  # P6
+        for t in ["Rounds 1-3 go back to the same implementer", "Rounds 4-5 go to a fresh implementer one model tier above",
+                  "Never fix in the coordinating session", "a problem survives round 5"]:
+            self.assertIn(t, WORKFLOW)
+
+    def test_rulings(self):  # P7
+        self.assertIn("`Ruling: <what you decided> - <why> - <what it costs if wrong>`", WORKFLOW)
+        self.assertIn("List each `Ruling:`", SKILL)
+
+    def test_checks_over_prose(self):  # P2
+        self.assertIn("a mistake seen twice becomes a lint rule, test or `protect:` glob", step(2))
+        for t in ["A mistake seen twice", "failure message says how to fix it", "`protect: <glob>`"]:
+            self.assertIn(t, WORKFLOW)
 
     def test_archive(self):  # C23
         s = step(9)
         for t in ["`agent-flow/<topic>-archive`", "`land.py`"]:
             self.assertIn(t, s)
 
-    def test_subagent_models(self):
-        for t in ["| Model |", "`sonnet` for apply implementers", "`opus` for every review subagent",
-                  "Each implementer (`model: sonnet`)", "fresh subagent (`model: sonnet`)", "runs on `model: opus`"]:
+    def test_subagent_models_by_size(self):  # P3
+        for t in ["| Model |", "`haiku` for `small`, `sonnet` for `medium`, `opus` for `large`",
+                  "runs on `sonnet` when every group is `small`, else on `opus`", "one tier above the group's model",
+                  "`Size: small`", "`Size: medium`", "`Size: large`", "fresh subagent (`model: sonnet`)",
+                  "`model:` from its group's size"]:
             self.assertIn(t, WORKFLOW)
+        self.assertIn("names what blocks it and its size", step(3))
 
     def test_review_once(self):
         s = step(6)
-        for t in ["Once per goal", "really tests its Scenario", "do not run a second"]:
+        for t in ["Once per goal", "really tests its Scenario", "do not run a second", "handed over as one file",
+                  "adds a workaround or a comment excusing one"]:
             self.assertIn(t, s)
+
+    def test_review_package(self):  # P5, P9
+        for t in ["`review-package.md`", "It does not re-run Verify commands", "a package of the fix diff",
+                  "a comment that explains one away", "listed under Open questions, not fixed here"]:
+            self.assertIn(t, WORKFLOW)
 
 
 class Locks(unittest.TestCase):  # C19, C22
@@ -105,6 +137,12 @@ class Locks(unittest.TestCase):  # C19, C22
         for t in ["`.agent-flow/**`", "`.github/workflows/**`", "`openspec/config.yaml`",
                   "`openspec/changes/<topic>/specs/**`", "`tasks.md` is not locked", "stop and ask the user",
                   "`agent-flow:owner-judges`"]:
+            self.assertIn(t, locks)
+
+    def test_guard_hook(self):  # P8
+        self.assertIn("`guard.py` hook", BOUNDARIES)
+        locks = SKILL[SKILL.index("## Locks"):SKILL.index("## Resume rule")]
+        for t in ["`protect: <glob>`", "`guard.py` hook denies", "`merge_gate.py` still checks every PR"]:
             self.assertIn(t, locks)
 
     def test_scenario_format(self):

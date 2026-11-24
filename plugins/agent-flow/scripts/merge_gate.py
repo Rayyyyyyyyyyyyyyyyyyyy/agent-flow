@@ -4,10 +4,12 @@
 Plan PR (head `<branch>-plan`, base `<branch>`): CI green and `plan: agent` in `.agent-flow/config`;
 otherwise the Owner merges it. Archive PR (head `agent-flow/<topic>-archive`): CI green and every changed file
 under `openspec/specs/`, `openspec/changes/<topic>/` or `openspec/changes/archive/<date>-<topic>/`. Any other PR: CI green including the `evidence-check`
-job, a merged Plan PR for its head branch, and no change to a locked path since that Plan PR merged.
+job, a merged Plan PR for its head branch, and no change to a locked path (or a `protect:` glob from
+`.agent-flow/config`) since that Plan PR merged.
 Always: no `agent-flow:owner-judges` label, no kill switch.
 """
 import argparse
+import fnmatch
 import json
 import re
 import subprocess
@@ -36,6 +38,17 @@ def config(root):
     cfg = root / ".agent-flow/config"
     pairs = [l.split(":", 1) for l in cfg.read_text().splitlines() if ":" in l] if cfg.is_file() else []
     return {k.strip().lower(): v.strip().lower() for k, v in pairs}
+
+
+def protected(root):
+    """The `protect: <glob>` lines of `.agent-flow/config`, case kept: repo paths the Calling repo locks too."""
+    cfg = root / ".agent-flow/config"
+    lines = cfg.read_text().splitlines() if cfg.is_file() else []
+    return [l.split(":", 1)[1].strip() for l in lines if l.split(":", 1)[0].strip().lower() == "protect" and ":" in l]
+
+
+def is_locked(path, globs):
+    return bool(LOCKED.match(path)) or any(fnmatch.fnmatchcase(path, g) for g in globs)
 
 
 def main(argv=None):
@@ -81,7 +94,8 @@ def main(argv=None):
         if not plans:
             blocked.append(f"no merged Plan PR ({head}-plan into {head})")
         else:
-            locked = [f for f in changed(plans[0]["mergeCommit"]["oid"], view["headRefOid"]) if LOCKED.match(f)]
+            globs = protected(root)
+            locked = [f for f in changed(plans[0]["mergeCommit"]["oid"], view["headRefOid"]) if is_locked(f, globs)]
             if locked:
                 blocked.append("changes locked paths after the Plan PR (needs a new Plan PR): " + ", ".join(locked))
     if (root / ".agent-flow/STOP").exists():

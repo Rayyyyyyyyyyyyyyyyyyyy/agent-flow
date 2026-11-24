@@ -21,6 +21,7 @@ python3 -m unittest tests.test_verify -v          # one file
 python3 -m unittest tests.test_merge_gate.MergeGateTest -v   # one class
 python3 scripts/no_cjk.py plugins/agent-flow      # shipped text must be CJK-free
 python3 scripts/check_package.py                  # personal-data / packaging checks
+python3 scripts/check_version.py origin/main      # plugin changed => version in plugin.json raised
 claude plugin validate .                          # manifest validation
 ```
 
@@ -28,14 +29,15 @@ CI (`.github/workflows/ci.yml`) runs all of the above on macOS and Ubuntu and in
 
 ## Architecture
 
-Vocabulary: `GLOSSARY.md`. Why it is shaped this way: `docs/adr/0001` (locked Verify commands checked by CI), `docs/adr/0002` (skills chosen from the environment), `docs/adr/0003` (OpenSpec for explore, propose, apply, archive).
+Vocabulary: `GLOSSARY.md`. Why it is shaped this way: `docs/adr/0001` (locked Verify commands checked by CI), `docs/adr/0002` (skills chosen from the environment), `docs/adr/0003` (OpenSpec for explore, propose, apply, archive), `docs/adr/0004` (a hook enforces locks and Ask-first commands before tools run).
 
 The skill (`skills/agent-flow/SKILL.md`, steps 0-9) runs in a Calling repo: OpenSpec for explore, propose, apply and archive, that session's installed skills for research, review and the rest. agent-flow only reads what OpenSpec leaves in the repo. The plugin's own pieces, in `plugins/agent-flow/scripts/`:
 
 1. `doctor.py`: preflight the skill runs first, including that `openspec list --json` works.
 2. `verify.py`: the Evidence check. Parses each `#### Scenario:` in `openspec/changes/<topic>/specs/**/spec.md` and runs its `Verify:` commands (`shell=False`, exit code decides). The skill copies it to the Calling repo's `.agent-flow/verify.py` for its `evidence-check` CI job; stdlib only.
-3. `merge_gate.py`: CI green; Plan PR (`agent-flow/<topic>-plan`) only with `plan: agent`; archive PR (`agent-flow/<topic>-archive`) only inside its change's OpenSpec paths; other PRs need a passing `evidence-check`, a merged Plan PR, and no locked-path change since it; no `agent-flow:owner-judges` label; no kill switch.
+3. `merge_gate.py`: CI green; Plan PR (`agent-flow/<topic>-plan`) only with `plan: agent`; archive PR (`agent-flow/<topic>-archive`) only inside its change's OpenSpec paths; other PRs need a passing `evidence-check`, a merged Plan PR, and no locked-path or `protect:` change since it; no `agent-flow:owner-judges` label; no kill switch.
 4. `land.py`: imports `merge_gate.main`, updates a BEHIND branch, merges with a merge commit (`--match-head-commit`), cleans up only after `MERGED`.
+5. `guard.py`: the plugin's PreToolUse hook (`hooks/hooks.json`), active only in a repo with `.agent-flow/`: denies edits and shell writes to locked or `protect:` paths on `agent-flow/*` branches except `-plan`, asks before commands that can delete work, fails closed on unreadable input (ADR 0004).
 
 Interfaces between them: `docs/agent-flow/contracts.md`.
 
@@ -48,4 +50,5 @@ Tests import plugin scripts by inserting `plugins/agent-flow/scripts` into `sys.
 ## Working rules from past decisions
 
 - Verification methods that create external resources, run real model calls, or spend the user's usage (E2E runs, fixture repos, canaries) need the user's explicit yes first. A fabricated fixture-repo E2E was rejected and reverted for this reason.
+- Every PR that changes `plugins/agent-flow/` raises `version` in its `plugin.json` (semver; CI fails otherwise). Without a new version Claude Code keeps the cached copy on update.
 - Check `## Open questions` in `discussion.md` before starting work; several items there are explicitly "ask the user".

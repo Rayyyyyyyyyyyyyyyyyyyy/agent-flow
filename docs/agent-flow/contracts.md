@@ -30,7 +30,7 @@ Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: h
 - A criterion is a line `#### Scenario: <name>` in a spec file.
 - Under it, indented: one or more `Verify: `<command>`` lines, or an `Owner judges: <text>` line. Any other heading ends the criterion.
 - A Verify command must not contain `|`, `;`, `&`, `>`, `<`, `$(`, `$?`, nor be `sh|bash|zsh|dash|fish ... -c ...`. It runs with `shell=False` (`shlex.split`) from the cwd, timeout 900 s; exit 0 is PASS.
-- `tasks.md`: each `## N.` group's first line is `Blocked by: <numbers>` or `Blocked by: none`. verify.py does not read it.
+- `tasks.md`: each `## N.` group's first line is `Blocked by: <numbers>` or `Blocked by: none`; its second line is `Size: small`, `Size: medium` or `Size: large`. verify.py does not read it.
 
 ## verify.py
 
@@ -47,13 +47,30 @@ Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: h
 - Label `agent-flow:owner-judges` blocks.
 - Archive PR (head ends `-archive`): `gh api repos/{owner}/{repo}/compare/<baseRefName>...<headRefOid>` must list only files under `openspec/specs/`, `openspec/changes/<topic>/` or `openspec/changes/archive/YYYY-MM-DD-<topic>/`.
 - Plan PR (head ends `-plan`): blocked unless `.agent-flow/config` has `plan: agent`.
-- Any other PR: a check named `evidence-check` must pass (the reason starts `CI ` so `land.py` treats it as pending); `gh pr list --base <head> --head <head>-plan --state merged --json mergeCommit` must return a Plan PR; `gh api repos/{owner}/{repo}/compare/<plan merge oid>...<headRefOid>` must list no file under `.agent-flow/`, `.github/workflows/`, `openspec/changes/*/specs/`, nor `openspec/config.yaml`.
-- Kill switch, read from `--repo-root` (default cwd): `.agent-flow/STOP` exists, or `.agent-flow/config` has `merge: never`. Config lines are `key: value`, case-insensitive.
+- Any other PR: a check named `evidence-check` must pass (the reason starts `CI ` so `land.py` treats it as pending); `gh pr list --base <head> --head <head>-plan --state merged --json mergeCommit` must return a Plan PR; `gh api repos/{owner}/{repo}/compare/<plan merge oid>...<headRefOid>` must list no file under `.agent-flow/`, `.github/workflows/`, `openspec/changes/*/specs/`, nor `openspec/config.yaml`, nor one matching a `protect:` glob (`fnmatch`, case-sensitive, against the repo-relative path).
+- Kill switch, read from `--repo-root` (default cwd): `.agent-flow/STOP` exists, or `.agent-flow/config` has `merge: never`. Config lines are `key: value`, keys case-insensitive; values lower-cased except `protect:`, whose glob keeps its case and may repeat.
+
+## .agent-flow/config (Calling repo)
+
+Optional. Keys: `plan: agent` (the agent may land the Plan PR), `merge: never` (kill switch), `apply: parallel` (ready task groups run at the same time; default one at a time, read by the skill only), `protect: <glob>` (one per line; more paths locked like the fixed ones, read by `merge_gate.py` and `guard.py`).
 
 ## land.py
 
 - CLI: `land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]`; imports `merge_gate.main`, so its BLOCKED lines and exit codes pass through. Exit 0 merged, 1 blocked or failed, 2 setup error.
 - Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, first run the gate and stop on any reason not starting `BLOCKED: CI` (no remote write), then `gh pr update-branch <n>` and `gh pr checks <n> --watch`; run the full gate; `gh pr merge <n> --merge --match-head-commit <headRefOid>`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>`. Any earlier failure prints why and changes nothing.
+
+## guard.py
+
+- PreToolUse hook, registered in `plugins/agent-flow/hooks/hooks.json` for `Edit|Write|MultiEdit|NotebookEdit|Bash` as `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/guard.py"`. Reads the hook JSON (`tool_name`, `tool_input`, `cwd`) on stdin; always exits 0.
+- Inactive (no output) unless the nearest directory above `cwd` holding `.git` also holds `.agent-flow/`.
+- Locks on when the branch starts `agent-flow/` and does not end `-plan`. Then a file tool on a path matching `merge_gate.LOCKED` or a `protect:` glob, or a Bash command writing one (`cp`/`install`/`ln` destination, `mv`, `rm`, `tee`, `touch`, `truncate`, `dd of=`, `chmod`, `rmdir`, `sed -i`, `perl -i`, a `>`/`>>` redirect, `git rm|mv|checkout|restore|apply`), prints `permissionDecision: deny`.
+- On any branch, a Bash command that can delete or overwrite work prints `permissionDecision: ask`: `git push` with `-f`, `--force*`, `-d`, `--delete`, `--mirror`, `--prune`, or a `+`/`:` refspec; `git reset --hard`; `git clean -f`; `git checkout -f|--force|--|.`; `git restore` other than `--staged`; `git branch -D`; `git stash drop|clear`; `git worktree remove --force`; `git filter-branch|filter-repo`, `git reflog expire`; recursive `rm`; `gh repo|release delete`. Commands are split on `&&`, `||`, `;`, `|`, `&` and newlines; `sh|bash|zsh|dash -c` strings are checked too.
+- Unreadable input: `deny`; a command `shlex` cannot split: `ask`.
+- Output: `{"hookSpecificOutput": {"hookEventName": "PreToolUse", "permissionDecision": ..., "permissionDecisionReason": ...}}`; each reason says how to proceed.
+
+## Work files (Calling repo)
+
+`$(git rev-parse --git-common-dir)/agent-flow/<topic>/`, never committed: `group-N-brief.md`, `group-N-report.md`, `review-package.md`.
 
 ## doctor.py
 
