@@ -25,7 +25,7 @@ python3 scripts/check_version.py origin/main      # plugin changed => version in
 claude plugin validate .                          # manifest validation
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of the above on macOS and Ubuntu and installs the plugin into a fresh HOME.
+CI (`.github/workflows/ci.yml`) runs all of the above on macOS and Ubuntu and installs the plugin into a fresh HOME. After `ci` passes on a push to `main`, `.github/workflows/release.yml` runs `scripts/release.py <sha>`: it creates tag and GitHub release `v<version>` once per version (`--prerelease` while 0.x; `--dry-run` prints the `gh` command).
 
 ## Architecture
 

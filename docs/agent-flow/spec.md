@@ -54,4 +54,4 @@ agent-flow itself owns only what no other tool provides: the Boundaries, the Pla
 
 ## Out of Scope
 
-Release polish (#13: CHANGELOG, tag, pinned install) until the Method is done; the README is revised at release; native Windows (WSL2 documented); upgrade migration; uninstall beyond a README section.
+Release polish (#13: CHANGELOG, pinned install) until the Method is done; tags and GitHub releases are automatic per version, pre-releases while 0.x; the README is revised at release; native Windows (WSL2 documented); upgrade migration; uninstall beyond a README section.
