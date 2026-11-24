@@ -139,7 +139,7 @@
 | G1 | `review.py` | `review.py`（多印成本） | 保留 | | |
 | G2 | `check_portability.py` | `check_package.py`、`no_cjk.py`、`doctor.py` | 保留 | | |
 | G3 | `sync_methods.py`、CATALOG、manifest | 無 | 不適用 | 沒有打包 Skills 目錄 | |
-| G4 | `CLAUDE_CLOUD.md`：換電腦、雲端接手；可直接給 Claude 的三種開場句 | README（#13）尚未寫 | 削弱 | 開場句範例、雲端注意事項 | 補回（README） |
+| G4 | `CLAUDE_CLOUD.md`：換電腦、雲端接手；可直接給 Claude 的三種開場句 | README「Use」：四種開場句（目標、方向、種子、接續）；「Cloud sessions and other machines」：只看得到已 push 的、雲端裝 plugin、skills 依環境不同 | 保留 | | 已補（README，2026-11-24） |
 
 ## H. agent-flow 新增、要保留的
 
