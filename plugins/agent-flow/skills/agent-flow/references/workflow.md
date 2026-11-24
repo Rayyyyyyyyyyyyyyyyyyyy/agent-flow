@@ -1,46 +1,49 @@
 # Workflow detail
 
-Order: align the environment, receive, gather facts, confirm with the user, cut tickets and open the Plan PR, implement, review, evidence check, merge; then report. Do the thinking yourself (breaking down, deciding); give execution to implementer subagents and judgment of the result to a review in a separate context. Independent work may run in parallel subagents.
+Order: align the environment, receive, gather facts, propose and open the Plan PR, confirm with the user, apply, review, evidence check, merge, archive; then report. Do the thinking yourself (breaking down, deciding); give execution to implementer subagents and judgment of the result to a review in a separate context. Independent work may run in parallel subagents.
 
 Commit after each step. Commit and push to working branches without asking. Every change reaches the default branch through a PR.
 
+## Running OpenSpec
+
+- Run `/opsx:explore`, `/opsx:propose`, `/opsx:apply` and `/opsx:archive` as the user would. If the session lists them as skills or commands, invoke them; otherwise find their files under the repo's `.claude/` or the user's `~/.claude/` and follow them as written.
+- Read their results from the repo: `openspec list --json`, `openspec status --change <topic> --json`, and the files under `openspec/`. How OpenSpec inits, syncs or archives is OpenSpec's business; do not edit its schema or reorganise its files.
+- Installing OpenSpec and `openspec init` are the user's (doctor prints the fix).
+
 ## 0. Align the environment
 
-- Source of truth is this session's own list of available skills and agents, not a fixed vendor list. Read each candidate's description; read its `SKILL.md` before relying on what it does.
+- For the steps OpenSpec does not cover, the source of truth is this session's own list of available skills and agents, not a fixed vendor list. Read each candidate's description; read its `SKILL.md` before relying on what it does.
 - A skill marked `disable-model-invocation: true` cannot be called through the Skill tool: find its `SKILL.md` (user skills under `~/.claude/skills/<name>/`, plugin skills under `~/.claude/plugins/cache/*/*/*/skills/<name>/`) and follow it as written.
-- Steps to fill: grill a vague request (step 1), research (2), spec and tickets (4), implement with test-first (5), review (6), PR body (every PR), retrospective (after 8, optional). Front-end, security or domain skills join the step they serve.
+- Steps to fill: research (step 2), test-first inside apply (5), review (6), PR body (every PR), retrospective (after 9, optional). Front-end, security or domain skills join the step they serve.
 - Record `.agent-flow/skills.md`:
 
   ```markdown
   | Step | Skill | Invoke | Why |
   |---|---|---|---|
-  | 4 tickets | <name> | Skill tool, or read <path> | <one line> |
+  | 6 review | <name> | Skill tool, or read <path> | <one line> |
   ```
 
-- Write the settings chosen skills expect, all pointing at this layout: spec `docs/<topic>/spec.md`, tickets `docs/<topic>/tickets/<NN>-<slug>.md` in the format of [tickets.md](tickets.md), glossary `GLOSSARY.md`, decisions `docs/adr/`. For example, a ticket skill that reads `docs/agents/issue-tracker.md` gets one saying tickets are local markdown files at that path, with that format, and that its own ticket template yields to [tickets.md](tickets.md).
+- Point the chosen skills at this layout: the change `openspec/changes/<topic>/`, records `docs/<topic>/`, glossary `GLOSSARY.md`, decisions `docs/adr/`. A review skill that looks for the originating spec gets `openspec/changes/<topic>/`.
 - Redo step 0 when the installed skills change; the new `skills.md` goes in the next Plan PR.
 
 Fallbacks, only for a step no installed skill covers:
 
 | Step | Fallback |
 |---|---|
-| Grill | At most 5 questions per round, each with your recommended answer. |
 | Research | A subagent reads primary sources and returns only quoted lines with their path or URL. |
-| Spec | `spec.md` with: Problem, Solution, User stories, Implementation decisions, Testing decisions, Out of scope. |
-| Tickets | [tickets.md](tickets.md). |
-| Implement | One subagent per ready ticket, one worktree each off the integration branch; write the failing Verify first, see it fail, then implement; merge each into the integration branch, resolving conflicts in a separate subagent. |
-| Review | One subagent with only: the diff, the ticket files, `foundation.md`, the Verify results. It reports findings with a concrete failing case each. |
-| PR body | What changed, how it was checked (commands and results), the ticket files. |
+| Test-first | Write the failing Verify command's test first, see it fail for the stated reason, then implement. |
+| Review | One subagent with only: the diff, `openspec/changes/<topic>/`, `foundation.md`, the Verify results. It reports findings with a concrete failing case each. |
+| PR body | What changed, how it was checked (commands and results), the OpenSpec change. |
 
 ## 1. Receive the request
 
-| The user gives | You do | Start when |
+| The user gives | You do | Moves on when |
 |---|---|---|
-| **Goal**: a result they want | Write it as a finish line | Written |
-| **Direction**: end point undecided | Research, propose 2-3 candidate finish lines, each with cost and a recommendation | The user picks one |
-| **Seed**: a loose idea | Grill: research feasibility and similar work; ask only what cannot be found (preferences, resources, limits); then propose 2-3 concepts with finish lines | The user picks one |
+| **Goal**: a result they want | Write it as a finish line; no explore | Written |
+| **Direction**: end point undecided | `/opsx:explore` with the user; offer 2-3 candidate finish lines, each with cost and a recommendation | The user picks one and says to move on |
+| **Seed**: a loose idea | `/opsx:explore` with the user: research feasibility and similar work; ask only what cannot be found (preferences, resources, limits) | The user says to move on |
 
-When unsure which, treat it as the more mature kind and say how you judged. Put the user's words in `discussion.md` verbatim ([records.md](records.md)).
+When unsure which, treat it as the more mature kind and say how you judged. Put the user's words in `discussion.md` verbatim ([records.md](records.md)). Explore is the user's discussion: do not end it, propose or implement from it on your own.
 
 Finish line rules:
 
@@ -52,68 +55,95 @@ Finish line rules:
 
 Research order: official docs, source code, web search, then a trial run. Keep large documents out of the coordinator: research goes to a subagent or the chosen research skill, which returns quoted lines and their source. If the network or a site is blocked, switch source; if a site is truly needed, tell the user which and why.
 
-`docs/<topic>/foundation.md` holds what the work rests on: one fact per line, each with its source; `assumption:` marks a fact with none. Tickets cite it; implementers and the review take facts from it rather than finding their own.
+`docs/<topic>/foundation.md` holds what the work rests on: one fact per line, each with its source; `assumption:` marks a fact with none. The proposal and design cite it; implementers and the review take facts from it rather than finding their own.
 
-Then write the repo's own rules and verify, fitted to this repo and inside the Boundaries in SKILL.md (they may tighten a boundary, never loosen one):
+Then write the repo's own rules and verify. They can only be written after reading this repo, and they sit inside the Boundaries in SKILL.md (they may tighten a boundary, never loosen one):
 
 - Verify commands: what proves a change works here (tests, build, lint, type check). Prefer what the repo already runs. Note what they do not cover.
-- End-to-end tests: only when the repo needs them; many do not. A method that spends usage or creates external resources is asked in step 3, with its cost.
+- End-to-end tests: only when the repo needs them; many do not. A method that spends usage or creates external resources is asked in step 4, with its cost.
 - Merge conditions: `merge_gate.py` always requires CI green, the evidence check, a merged Plan PR, no locked-path change after it and no kill switch. The repo may add conditions; it may not remove one.
 - Where: lasting rules go in the repo's `CLAUDE.md` or `AGENTS.md`; rules for this goal only go in `docs/<topic>/`. Record what you wrote under Decisions. If the default branch has no rule requiring a PR and green CI, set it when the plan allows (`gh api` branch protection, requiring `evidence-check`); if not allowed, say so in Decisions, and `merge_gate.py` is the guard.
 
-Missing infrastructure that blocks evidence (raw data or logs, version and commit mapping, a reproducible environment) becomes early tickets. Using secrets, money or the user's own data, a need for accounts you do not have, and browser use go to the user first (Boundaries, Ask first).
+Missing infrastructure that blocks evidence (raw data or logs, version and commit mapping, a reproducible environment) becomes the first task groups. Using secrets, money or the user's own data, a need for accounts you do not have, and browser use go to the user first (Boundaries, Ask first).
 
-## 3. Confirm with the user
+## 3. Propose and open the Plan PR
 
-One message: the restated goal, the finish line, the task list (one line per planned ticket: what it delivers, what blocks it), the skills from step 0, and every item that needs a yes upfront (a verification method that spends usage or creates external resources, with its estimated cost). Ask whether the tasks and goal are right. Wait for the answer; record it in `discussion.md` (Original words for the user's words, Decisions for what changed). This is the only planned question round; later questions are only those Boundaries requires.
+Run `/opsx:propose <topic>`. You decide the breakdown and record why in Decisions. Where propose would ask the user, take your recommended answer and list each such choice in the Plan PR body. The proposal's scope and non-goals come from the finish line; cite `foundation.md` for facts.
 
-## 4. Cut tickets and open the Plan PR
+Every Scenario in `openspec/changes/<topic>/specs/**/spec.md` is one verifiable behavior. Under its WHEN/THEN lines, indented, it carries one or more Verify commands, or one `Owner judges:` line:
 
-Write `docs/<topic>/spec.md`, then the ticket files by [tickets.md](tickets.md). You decide the breakdown and record why in Decisions. Where a chosen skill would ask the user (granularity, test seams), take your recommended answer and list each such choice in the Plan PR body.
+```markdown
+#### Scenario: <behavior>
+- **WHEN** <condition>
+- **THEN** <observable outcome>
+  Verify: `<command>`
 
-Once per batch, start a fresh subagent with only the ticket paths. Ask: what would you build for each ticket, and where must you guess? Fix the tickets for guesses that would change a Verify result or an interface between tickets.
+#### Scenario: <behavior only a person can judge>
+- **THEN** <outcome>
+  Owner judges: <what to look at and what counts as pass>
+```
 
-Run `python3 .agent-flow/verify.py docs/<topic>/tickets` on the unimplemented tree. Commands meant to fail must fail for the stated reason; each must finish by itself, leaving no server or process running.
+- The exit code alone decides: 0 is PASS. One command, run as written from the repo root without a shell: no `|`, `;`, `&`, `>`, `<`, `$(`, `$?`, and no `sh -c` wrapper. Put a multi-step check in a script in the repo and call it.
+- The command tests the behavior, not that a string exists in a file.
+- Before implementation it fails for the reason the Scenario states; it finishes by itself and leaves no server or process running.
+- A change to a user interface has Scenarios for waiting, empty results, failure, repeated actions, keyboard operation, and where focus lands after re-render. A front-end page is usually one task group per component plus one that assembles the page, blocked by them.
+- `Owner judges:` is the exception. Any PR carrying such a Scenario gets the label `agent-flow:owner-judges`; the user judges and merges it.
+- A change with no code (docs, config) still has a Verify command (a check or a build).
+
+`tasks.md` holds implementation steps only, no Verify lines. Each `## N.` group is one unit of work and its first line names its blockers: `Blocked by: 1, 2` or `Blocked by: none`.
+
+Once per change, start a fresh subagent with only `openspec/changes/<topic>/`. Ask: what would you build for each task group, and where must you guess? Fix the artifacts for guesses that would change a Verify result or an interface between groups.
+
+Run `python3 .agent-flow/verify.py openspec/changes/<topic>/specs` on the unimplemented tree. Commands meant to fail must fail for the stated reason; each must finish by itself, leaving no server or process running.
 
 Copy `${CLAUDE_PLUGIN_ROOT}/scripts/verify.py` to `.agent-flow/verify.py` when it is missing or differs. Add this job to the repo's CI workflow (create `.github/workflows/ci.yml` if none runs on pull requests), with the repo's own setup steps so its Verify commands can run:
 
 ```yaml
   evidence-check:
+    if: ${{ startsWith(github.head_ref, 'agent-flow/') && !endsWith(github.head_ref, '-archive') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       # the repo's setup steps (runtime, dependency install) go here
-      - run: python3 .agent-flow/verify.py ${{ github.event_name == 'pull_request' && github.base_ref != github.event.repository.default_branch && '--check-only' || '' }}
+      - run: python3 .agent-flow/verify.py ${{ github.base_ref != github.event.repository.default_branch && '--check-only' || '' }}
 ```
 
-PRs into an integration branch (the Plan PR) only validate the tickets; PRs into the default branch run every Verify command. CI runs only verify commands: no deploy, no secrets.
+The Plan PR (into the integration branch) only validates the specs; the integration PR (into the default branch) runs every Verify command. The job is skipped on the archive PR and on PRs that are not agent-flow's. CI runs only verify commands: no deploy, no secrets.
 
-Branches: push `agent-flow/<topic>` from the default branch, then `agent-flow/<topic>-plan` carrying `discussion.md`, `foundation.md`, `spec.md`, the tickets, `.agent-flow/` (skills map, `verify.py`, config if any), CI changes and repo rules. Open the Plan PR into `agent-flow/<topic>`.
+Branches: push `agent-flow/<topic>` from the default branch, then `agent-flow/<topic>-plan` carrying `discussion.md`, `foundation.md`, `openspec/changes/<topic>/`, `.agent-flow/` (skills map, `verify.py`, config if any), CI changes and repo rules. Open the Plan PR into `agent-flow/<topic>`.
 
-Session phases: once the Plan PR is open, tell the user to review and merge it, then start implementation in a fresh session with the exact line: `Run agent-flow: resume from docs/<topic>/discussion.md.` With `plan: agent`, land it yourself and continue. A coordinating session that has handled many tickets suggests a fresh session the same way instead of continuing.
+## 4. Confirm with the user
 
-## 5. Implement
+One message: the restated goal, the finish line, the task groups (what each delivers, what blocks it), the Plan PR link, the skills from step 0, and every item that needs a yes upfront (a verification method that spends usage or creates external resources, with its estimated cost). Ask whether the change and goal are right. Wait for the answer; record it in `discussion.md` (Original words for the user's words, Decisions for what changed). Changes the user asks for go into the Plan PR before it merges. This is the only planned question round after explore; later questions are only those Boundaries requires.
 
-With the chosen implementation skill on `agent-flow/<topic>`. Each implementer gets only pointers: its ticket file, `foundation.md`, `discussion.md`, its worktree, the integration branch, the Verify commands. Always include: "Any judgment or 'I guess' you make yourself, however small, counts as a guess; report it." Report back: status (`DONE`, `GUESSED`, `BLOCKED`), commit, each Verify command with its result, the guess list, what was not verified.
+Session phases: tell the user to review and merge the Plan PR, then start apply in a fresh session with the exact line: `Run agent-flow: resume from docs/<topic>/discussion.md.` With `plan: agent`, land it yourself after the user's yes and continue. A coordinating session that has handled many task groups suggests a fresh session the same way instead of continuing.
 
-Judge each guess: correct ones are recorded in the integration PR body; wrong ones are reverted and re-dispatched. A ticket that is wrong itself needs a new Plan PR (Locks). After a subagent ends, check for leftover processes (`pgrep -fl`, `lsof` to confirm the owner before killing).
+## 5. Apply
 
-Follow-ups inside the finish line become tickets in a new Plan PR; anything beyond it goes into Decisions as a question.
+On `agent-flow/<topic>`. Each implementer gets one task group and only pointers: `openspec/changes/<topic>/`, `foundation.md`, `discussion.md`, its worktree, the integration branch, the Verify commands its group serves. It runs `/opsx:apply <topic>` for its group only, test-first with the chosen skill, and ticks the group's tasks. Always include: "Any judgment or 'I guess' you make yourself, however small, counts as a guess; report it." Report back: status (`DONE`, `GUESSED`, `BLOCKED`), commit, each Verify command with its result, the guess list, what was not verified.
+
+Merge each group into the integration branch, resolving conflicts in a separate subagent. Judge each guess: correct ones are recorded in the integration PR body; wrong ones are reverted and re-dispatched. A Scenario that is wrong itself needs a new Plan PR (Locks). After a subagent ends, check for leftover processes (`pgrep -fl`, `lsof` to confirm the owner before killing).
+
+Follow-ups inside the finish line become new Scenarios and tasks in a new Plan PR; anything beyond it goes into Decisions as a question.
 
 Stuck means: the same problem survives three different approaches; or the next step needs something only the user can give. Save the work, tell the user with options and a recommendation, and continue unblocked work.
 
 ## 6. Review
 
-Deterministic checks first: every Verify command passes locally and CI is green. Then one review of `git diff <default branch>...agent-flow/<topic>` with the chosen review skill. Point it at the ticket files, `foundation.md` and the Verify results rather than pasting them. Beyond its own checks it answers: does each Verify command really test its criterion; does the diff stay inside each ticket's Scope and out of its Out of scope. One round; after fixes, re-check only the findings that failed. Record the review's cumulative tokens for the report.
+Deterministic checks first: every Verify command passes locally and CI is green. Then one review of `git diff <default branch>...agent-flow/<topic>` with the chosen review skill. Point it at `openspec/changes/<topic>/`, `foundation.md` and the Verify results rather than pasting them. Beyond its own checks it answers: does each Verify command really test its Scenario; does the diff stay inside the proposal's scope and out of its non-goals. One round; after fixes, re-check only the findings that failed. Record the review's cumulative tokens for the report.
 
 ## 7. Evidence check
 
-The `evidence-check` CI job on the integration PR. A red job is fixed in code, never by changing a ticket, test or CI (Never, Locks).
+The `evidence-check` CI job on the integration PR. A red job is fixed in code, never by changing a spec, test or CI (Never, Locks).
 
 ## 8. Merge
 
 `land.py <pr> [--worktree <dir>] [--repo-root <dir>]` runs the `merge_gate.py` checks, updates the branch and waits for checks when it is behind, merges with a merge commit (`gh pr merge <n> --merge`), and only after `gh pr view --json state` says MERGED removes the worktree and deletes the local and remote branch. Do not poll or clean up by hand. Any failure prints why and touches nothing. Never squash, so `git revert -m 1 <sha>` undoes it. Deploy and publish are outside the Method: ask first.
 
+## 9. Archive
+
+From the updated default branch, create `agent-flow/<topic>-archive` and run `/opsx:archive <topic>`; it moves the change under `openspec/changes/archive/` and updates `openspec/specs/`, the repo's current specs. Answer its questions with your recommendation (sync the specs). Open the PR into the default branch and land it with `land.py`; `merge_gate.py` lets it through only when every changed file is under `openspec/specs/`, `openspec/changes/<topic>/` or `openspec/changes/archive/<date>-<topic>/`.
+
 ## Report
 
-Close with: finish line items, each with its evidence and result; the `user judges` items for the user; which checks failed or did not run; what was merged; guesses taken and fallbacks used; the review's cumulative tokens; number of questions to the user and the reason for each. Format: [grounded-answer.md](grounded-answer.md).
+Close with: finish line items, each with its evidence and result; the `user judges` items for the user; which checks failed or did not run; what was merged and archived; guesses taken and fallbacks used; the review's cumulative tokens; number of questions to the user and the reason for each. Format: [grounded-answer.md](grounded-answer.md).

@@ -42,6 +42,10 @@ def main():
             add("WARN", "branch protection unavailable (private repo on a free plan): merge gate script is the only guard", "make the repo public or upgrade the plan")
         if url.startswith("https://") and "workflow" not in auth:
             add("WARN", "token lacks the workflow scope (HTTPS remote cannot push .github/workflows)", "gh auth refresh -s workflow")
+    if not shutil.which("openspec"):
+        add("FAIL", "openspec not installed", "npm install -g @fission-ai/openspec@latest")
+    elif run("openspec", "list", "--json")[0] != 0:
+        add("FAIL", "OpenSpec cannot read this repo (not initialised)", "run `openspec init` in the repo root, in your own terminal")
     if sys.version_info < (3, 11):
         add("FAIL", "python %d.%d is older than 3.11" % sys.version_info[:2], "install Python 3.11 or newer")
     for level, what, fix in problems:

@@ -2,7 +2,7 @@
 
 A Claude Code plugin that takes a goal from words to a merged, checked PR in the repo you run it in.
 
-You say what you want. The agent writes the finish line, gathers sourced facts, confirms the task list with you, cuts tickets whose every criterion has a fixed `Verify:` command, locks those commands in a Plan PR, implements tickets in parallel, reviews once, re-runs every locked command in CI, and merges only through a gate script that refuses missing or weakened evidence.
+You say what you want. The agent explores it with you through [OpenSpec](https://github.com/Fission-AI/OpenSpec) until you move on, gathers sourced facts, proposes an OpenSpec change whose every Scenario has a fixed `Verify:` command, locks those commands in a Plan PR you approve, applies the tasks in parallel, reviews once, re-runs every locked command in CI, merges only through a gate script that refuses missing or weakened evidence, and archives the change into the repo's current specs.
 
 Status: `0.0.0`, pre-release. The Method is implemented and unit-tested; it has not yet been proven end to end on a real goal.
 
@@ -11,9 +11,10 @@ Status: `0.0.0`, pre-release. The Method is implemented and unit-tested; it has 
 - Claude Code
 - `git`, and the GitHub CLI `gh`, logged in (`gh auth login`)
 - Python 3.11+ (stdlib only, nothing to install)
+- OpenSpec (`npm install -g @fission-ai/openspec@latest`, Node 20.19+), and `openspec init` run once in each Calling repo
 - A Calling repo with an `origin` on GitHub that you can push to
 
-The skill runs `doctor.py` first and prints the fix for anything missing. It warns when the token lacks the `workflow` scope (`gh auth refresh -s workflow`) or when a private repo on a free plan has no branch protection.
+The skill runs `doctor.py` first and prints the fix for anything missing; installing OpenSpec and `openspec init` are left to you. It warns when the token lacks the `workflow` scope (`gh auth refresh -s workflow`) or when a private repo on a free plan has no branch protection.
 
 Windows: use WSL2.
 
@@ -43,9 +44,9 @@ Seed: I have an idea, <idea>. Research it first and only ask what you cannot loo
 Continue <topic> from where it stopped.
 ```
 
-A direction or seed is grilled with you before any work starts.
+A goal goes straight to its finish line. A direction or seed is explored with you through `/opsx:explore`; you decide when to move on to propose.
 
-To pick up after a crash or on another machine, run the same command with the same goal (or the last opener above). The agent reads `docs/<topic>/discussion.md`, the tickets and the open PRs, and continues from the first unfinished step without duplicating branches, tickets or PRs.
+To pick up after a crash or on another machine, run the same command with the same goal (or the last opener above). The agent reads `docs/<topic>/discussion.md`, `openspec/changes/<topic>/` and the open PRs, and continues from the first unfinished step without duplicating branches, changes or PRs.
 
 ### Cloud sessions and other machines
 
@@ -61,28 +62,29 @@ To pick up after a crash or on another machine, run the same command with the sa
   }
   ```
 
-- Installed skills can differ between machines. Step 0 picks from what that session has and records the map in `.agent-flow/skills.md`; check it if results look different.
+- Installed skills can differ between machines. For the steps OpenSpec does not cover, step 0 picks from what that session has and records the map in `.agent-flow/skills.md`; check it if results look different.
 
 ## What a run does
 
 | Step | What happens |
 |------|--------------|
-| 0 Align | Picks one installed skill per step, with a reason; writes `.agent-flow/skills.md` |
-| 1 Receive | Records your words verbatim and a draft finish line in `docs/<topic>/discussion.md` |
+| 0 Align | Checks OpenSpec; picks one installed skill for each other step, with a reason; writes `.agent-flow/skills.md` |
+| 1 Receive | Records your words verbatim and the finish line in `docs/<topic>/discussion.md`; explores a direction or seed with you through `/opsx:explore` |
 | 2 Gather | Writes `docs/<topic>/foundation.md`: every fact with a source, the rest marked `assumption`; writes the repo's own rules |
-| 3 Confirm | Shows you the task list and the goal and waits for your answer |
-| 4 Plan PR | Writes tickets in `docs/<topic>/tickets/`, adds the `evidence-check` CI job, opens the Plan PR |
-| 5 Implement | After the Plan PR is merged, ready tickets run in parallel on `agent-flow/<topic>` |
+| 3 Propose | `/opsx:propose` writes `openspec/changes/<topic>/` with a `Verify:` command under every Scenario; adds the `evidence-check` CI job; opens the Plan PR |
+| 4 Confirm | Shows you the goal and the task groups and waits for your answer; merging the Plan PR is the go-ahead |
+| 5 Apply | `/opsx:apply`, ready task groups in parallel on `agent-flow/<topic>` |
 | 6 Review | One review of the integration PR, reporting its token use |
 | 7 Evidence check | CI re-runs every locked `Verify:` command at the PR head |
 | 8 Merge | `land.py` runs `merge_gate.py`, updates a branch that is behind, and merges with a merge commit |
+| 9 Archive | `/opsx:archive` folds the change into `openspec/specs/`, merged through the gate |
 
-agent-flow brings no skills of its own for research, implementation or review. It uses whatever this session has installed (see `docs/adr/0002`).
+OpenSpec runs explore, propose, apply and archive (see `docs/adr/0003`). For research and review agent-flow brings no skills of its own; it uses whatever this session has installed (see `docs/adr/0002`).
 
 ## Safety
 
 - **Plan PR**: you merge it yourself, which is your approval of every `Verify:` command before anything is built. Put `plan: agent` in `.agent-flow/config` to let the agent merge it.
-- **Locks**: after the Plan PR merges, `.agent-flow/**`, `.github/workflows/**` and `docs/<topic>/tickets/**` change only through a new Plan PR. The gate refuses any other PR that touches them.
+- **Locks**: after the Plan PR merges, `.agent-flow/**`, `.github/workflows/**`, `openspec/config.yaml` and `openspec/changes/<topic>/specs/**` change only through a new Plan PR. The gate refuses any other PR that touches them; the archive PR may change only its change's OpenSpec paths.
 - **Owner-judged criteria**: a PR labelled `agent-flow:owner-judges` is never merged by the agent.
 - **Kill switch**: create `.agent-flow/STOP`, or put `merge: never` in `.agent-flow/config`. PRs still open; nothing merges. Interrupt the session to stop everything.
 - **Asks first**: deploying or publishing, writing to repos or services you do not own, notifying other people, using secrets, spending money, deleting your data, any browser use, and verification that creates external resources or spends your usage.
@@ -98,8 +100,8 @@ Running the skill in a repo is your consent to branch, commit, push, open PRs, s
 .github/workflows/...         the evidence-check job
 docs/<topic>/discussion.md    your words, finish line, decisions, open questions
 docs/<topic>/foundation.md    sourced facts
-docs/<topic>/spec.md
-docs/<topic>/tickets/NN-*.md
+openspec/changes/<topic>/     the OpenSpec change (proposal, design, specs, tasks)
+openspec/specs/               current specs, updated by archive
 ```
 
 ## Uninstall

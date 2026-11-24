@@ -5,10 +5,10 @@ Records live in the user's repo and are versioned with the code. Work log lives 
 | File | Holds |
 |---|---|
 | `docs/<topic>/discussion.md` | The goal record, below |
-| `docs/<topic>/spec.md` | The spec |
 | `docs/<topic>/foundation.md` | Facts the goal rests on, each with its source |
-| `docs/<topic>/tickets/<NN>-<slug>.md` | Tickets ([tickets.md](tickets.md)) |
-| `.agent-flow/skills.md` | Which installed skill serves each step |
+| `openspec/changes/<topic>/` | The OpenSpec change: proposal, design, specs with Verify commands, tasks (workflow.md step 3) |
+| `openspec/specs/` | The repo's current specs, updated by archive |
+| `.agent-flow/skills.md` | Which installed skill serves each step OpenSpec does not cover |
 | `GLOSSARY.md` | Domain terms |
 | `docs/adr/NNNN-<title>.md` | Decisions that are hard to reverse, surprising, or a real trade-off |
 
@@ -54,7 +54,7 @@ Rules:
 
 ## GLOSSARY.md
 
-One entry per term the work coins or fixes the meaning of: `**Term**: one-sentence definition. Avoid: <synonyms not to use>`. Use the terms in tickets and code names. Update it when a decision changes a meaning.
+One entry per term the work coins or fixes the meaning of: `**Term**: one-sentence definition. Avoid: <synonyms not to use>`. Use the terms in OpenSpec artifacts and code names. Update it when a decision changes a meaning.
 
 ## ADR
 
