@@ -21,6 +21,7 @@ python3 -m unittest tests.test_verify -v          # one file
 python3 -m unittest tests.test_merge_gate.MergeGateTest -v   # one class
 python3 scripts/no_cjk.py plugins/agent-flow      # shipped text must be CJK-free
 python3 scripts/check_package.py                  # personal-data / packaging checks
+python3 scripts/check_version.py origin/main      # plugin changed => version in plugin.json raised
 claude plugin validate .                          # manifest validation
 ```
 
@@ -49,4 +50,5 @@ Tests import plugin scripts by inserting `plugins/agent-flow/scripts` into `sys.
 ## Working rules from past decisions
 
 - Verification methods that create external resources, run real model calls, or spend the user's usage (E2E runs, fixture repos, canaries) need the user's explicit yes first. A fabricated fixture-repo E2E was rejected and reverted for this reason.
+- Every PR that changes `plugins/agent-flow/` raises `version` in its `plugin.json` (semver; CI fails otherwise). Without a new version Claude Code keeps the cached copy on update.
 - Check `## Open questions` in `discussion.md` before starting work; several items there are explicitly "ask the user".

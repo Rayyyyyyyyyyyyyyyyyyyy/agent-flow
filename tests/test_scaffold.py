@@ -11,8 +11,8 @@ class Scaffold(unittest.TestCase):
         self.assertEqual(m["name"], "agent-flow")
         self.assertEqual(m["plugins"][0]["source"], "./plugins/agent-flow")
         p = json.loads((ROOT / "plugins/agent-flow/.claude-plugin/plugin.json").read_text())
-        # no pinned version: installs track the commit SHA, so every merge reaches users
-        self.assertNotIn("version", p)
+        # one version, in plugin.json only; CI (check_version.py) requires a bump whenever the plugin changes
+        self.assertRegex(p["version"], r"^\d+\.\d+\.\d+$")
         self.assertNotIn("version", m["plugins"][0])
 
 

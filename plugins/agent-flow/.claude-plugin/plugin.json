@@ -1,5 +1,6 @@
 {
   "name": "agent-flow",
   "description": "Agent flow skill",
+  "version": "0.1.0",
   "license": "MIT"
 }
