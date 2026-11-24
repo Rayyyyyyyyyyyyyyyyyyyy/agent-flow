@@ -19,6 +19,10 @@
 
 (2026-11-19, session started in skill-workflow main)
 
+> 對 我要弄這個agent-flow 就是因為她
+
+(2026-11-24, on Lauren Tan's AI Engineer talk as summarised in a post the user pasted: repo as the AI's textbook, near-zero comments, lint over markdown, hide error-prone APIs, the agent runs the app itself, tokens go to verification, one agent first then many. Numbers in the post are second-hand and unverified.)
+
 ## Finish line
 
 This phase is the Method; release waits for #13.
@@ -81,6 +85,18 @@ This phase is the Method; release waits for #13.
 - 2026-11-24 user (「不要留歷史混淆你自己」「都刪,tickets.md 也刪」): records hold the current state only. Deleted: `parity.md`, `docs/research/sandbox-for-audit-reruns.md`, `docs/agent-flow/reviews/`, `references/tickets.md`, and superseded Decisions.
 
 ## Open questions
+
+- Ask the user, one by one (proposed 2026-11-24 from the talk above and from reading obra/superpowers, garrytan/gstack and affaan-m/ECC; nothing is changed yet):
+  - P1 one agent first: the first experiment run executes task groups one at a time; parallel apply is switched on only after one agent delivers a PR that merges as is.
+  - P2 second time becomes a check: a mistake seen twice in a Calling repo becomes a lint or Verify check whose message says how to fix it, not another line in `CLAUDE.md`/`AGENTS.md` (feeds A9).
+  - P3 models by task size: each `## N.` group in `tasks.md` carries a size; a complete spec touching 1-2 files runs on `haiku`, integration on `sonnet`, design on `opus`; review model scales with diff size and risk, `sonnet` as the floor (superpowers `subagent-driven-development`, "turn count beats token price"). Changes the 2026-11-24 model decision.
+  - P4 subagent brief and report files: the task text goes to a brief file, the full report to a report file; the subagent returns only status, commits, one test line and concerns; no pasted history; implementers start no reviewers (feeds B8, E2).
+  - P5 review by file: the diff is written to one file for the reviewer; the reviewer does not re-run tests the implementer already ran; re-review covers only the fix diff.
+  - P6 fix loop: rounds 1-3 resume the same implementer, rounds 4-5 a fresh one a model tier up, then the agent rules and records; only after that does the existing "stuck after three approaches" rule ask the user.
+  - P7 ruling format: decisions the agent makes alone are recorded as `Ruling: what - why - cost if wrong` (feeds A6, A7).
+  - P8 hooks as fences: a PreToolUse hook blocks edits to locked paths, lint/test config and destructive commands at the moment they happen, fail-closed (gstack `careful`/`freeze`, ECC `config-protection`), instead of only at `merge_gate.py` (feeds A5, A12). The plugin would ship a hook: needs an ADR.
+  - P9 review findings: a workaround added by this diff, or a comment that excuses one, is a finding; workarounds already in the repo are recorded, not fixed (keeps A7).
+  - Not taken: superpowers' "no parallel implementers" (worktrees already isolate), gstack "Boil the Ocean" (against A7), ECC `verification-loop` (pipes in checks), per-tool telemetry hooks; deleting most comments; screenshots or E2E by default (E2E stays per project).
 
 - Next: the Owner runs a goal in an experiment repo (C10) and reports where it gets stuck. That run also settles whether the agent can invoke the `/opsx:*` commands itself, whether another plugin's skill can be invoked through the Skill tool, and whether reading `SKILL.md` from the plugin cache works for `disable-model-invocation` skills.
 - Owner-judged Scenarios rely on the agent adding the `agent-flow:owner-judges` label; `verify.py` lists them (`OWNER`) but `merge_gate.py` does not read them. Make it deterministic if the experiment shows the label being missed.
