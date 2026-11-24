@@ -18,10 +18,12 @@ Commit after each step. Commit and push to working branches without asking. Ever
 - Record `.agent-flow/skills.md`:
 
   ```markdown
-  | Step | Skill | Invoke | Why |
-  |---|---|---|---|
-  | 6 review | <name> | Skill tool, or read <path> | <one line> |
+  | Step | Skill | Invoke | Model | Why |
+  |---|---|---|---|---|
+  | 6 review | <name> | Skill tool, or read <path> | opus | <one line> |
   ```
+
+- Subagent models, by alias: `sonnet` for apply implementers (step 5) and the guess check (step 3), `opus` for every review subagent (step 6). Write them in the Model column; a Calling repo may change them there. Pass the alias as `model` on every subagent call, including the ones a chosen skill starts without naming a model.
 
 - Point the chosen skills at this layout: the change `openspec/changes/<topic>/`, records `docs/<topic>/`, glossary `GLOSSARY.md`, decisions `docs/adr/`. A review skill that looks for the originating spec gets `openspec/changes/<topic>/`.
 - Redo step 0 when the installed skills change; the new `skills.md` goes in the next Plan PR.
@@ -92,7 +94,7 @@ Every Scenario in `openspec/changes/<topic>/specs/**/spec.md` is one verifiable 
 
 `tasks.md` holds implementation steps only, no Verify lines. Each `## N.` group is one unit of work and its first line names its blockers: `Blocked by: 1, 2` or `Blocked by: none`.
 
-Once per change, start a fresh subagent with only `openspec/changes/<topic>/`. Ask: what would you build for each task group, and where must you guess? Fix the artifacts for guesses that would change a Verify result or an interface between groups.
+Once per change, start a fresh subagent (`model: sonnet`) with only `openspec/changes/<topic>/`. Ask: what would you build for each task group, and where must you guess? Fix the artifacts for guesses that would change a Verify result or an interface between groups.
 
 Run `python3 .agent-flow/verify.py openspec/changes/<topic>/specs` on the unimplemented tree. Commands meant to fail must fail for the stated reason; each must finish by itself, leaving no server or process running.
 
@@ -120,7 +122,7 @@ Session phases: tell the user to review and merge the Plan PR, then start apply 
 
 ## 5. Apply
 
-On `agent-flow/<topic>`. Each implementer gets one task group and only pointers: `openspec/changes/<topic>/`, `foundation.md`, `discussion.md`, its worktree, the integration branch, the Verify commands its group serves. It runs `/opsx:apply <topic>` for its group only, test-first with the chosen skill, and ticks the group's tasks. Always include: "Any judgment or 'I guess' you make yourself, however small, counts as a guess; report it." Report back: status (`DONE`, `GUESSED`, `BLOCKED`), commit, each Verify command with its result, the guess list, what was not verified.
+On `agent-flow/<topic>`. Each implementer (`model: sonnet`) gets one task group and only pointers: `openspec/changes/<topic>/`, `foundation.md`, `discussion.md`, its worktree, the integration branch, the Verify commands its group serves. It runs `/opsx:apply <topic>` for its group only, test-first with the chosen skill, and ticks the group's tasks. Always include: "Any judgment or 'I guess' you make yourself, however small, counts as a guess; report it." Report back: status (`DONE`, `GUESSED`, `BLOCKED`), commit, each Verify command with its result, the guess list, what was not verified.
 
 Merge each group into the integration branch, resolving conflicts in a separate subagent. Judge each guess: correct ones are recorded in the integration PR body; wrong ones are reverted and re-dispatched. A Scenario that is wrong itself needs a new Plan PR (Locks). After a subagent ends, check for leftover processes (`pgrep -fl`, `lsof` to confirm the owner before killing).
 
@@ -130,7 +132,7 @@ Stuck means: the same problem survives three different approaches; or the next s
 
 ## 6. Review
 
-Deterministic checks first: every Verify command passes locally and CI is green. Then one review of `git diff <default branch>...agent-flow/<topic>` with the chosen review skill. Point it at `openspec/changes/<topic>/`, `foundation.md` and the Verify results rather than pasting them. Beyond its own checks it answers: does each Verify command really test its Scenario; does the diff stay inside the proposal's scope and out of its non-goals. One round; after fixes, re-check only the findings that failed. Record the review's cumulative tokens for the report.
+Deterministic checks first: every Verify command passes locally and CI is green. Then one review of `git diff <default branch>...agent-flow/<topic>` with the chosen review skill; every subagent it starts runs on `model: opus`. Point it at `openspec/changes/<topic>/`, `foundation.md` and the Verify results rather than pasting them. Beyond its own checks it answers: does each Verify command really test its Scenario; does the diff stay inside the proposal's scope and out of its non-goals. One round; after fixes, re-check only the findings that failed. Record the review's cumulative tokens for the report.
 
 ## 7. Evidence check
 

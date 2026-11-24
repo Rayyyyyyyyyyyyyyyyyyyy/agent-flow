@@ -77,6 +77,7 @@ This phase is the Method; release waits for #13.
 - 2026-11-24 user (「然後你比對一下 matt系列的skill保留必要」「ok」): matt skills in the Method: `research` (2), `tdd` (inside apply), `code-review` (6, Spec axis on `openspec/changes/<topic>/`), `pr`, `domain-modeling`; situational `codebase-design`, `diagnosing-bugs`, `prototype`, `retro`. Not used: `grilling`, `grill-me`, `grill-with-docs`, `to-spec`, `to-tickets`, `implement`, `implement-spec`, `setup-matt-pocock-skills`. Installed skills are not removed.
 - 2026-11-24 agent, settled from the requested improvement 「切票切完可以並行」: apply stays parallel. Each `## N.` group of `tasks.md` starts with `Blocked by:`; ready groups run as one subagent and one worktree each, running `/opsx:apply` for that group only.
 - 2026-11-24 agent, settled from the existing step 2 rule: layer 2 rules stay in the Calling repo's `CLAUDE.md`/`AGENTS.md` (or `docs/<topic>/` for one goal); agent-flow does not write `openspec/config.yaml`.
+- 2026-11-24 user (「恩 照你的建議」): subagent models by alias, from the Base's split (implement sonnet, review opus): apply implementers and the guess check `sonnet`, every review subagent `opus`, passed explicitly on each call; recorded in the Model column of `.agent-flow/skills.md`, where a Calling repo may change them. The main session's model is the user's.
 - 2026-11-24 user (「不要留歷史混淆你自己」「都刪,tickets.md 也刪」): records hold the current state only. Deleted: `parity.md`, `docs/research/sandbox-for-audit-reruns.md`, `docs/agent-flow/reviews/`, `references/tickets.md`, and superseded Decisions.
 
 ## Open questions
