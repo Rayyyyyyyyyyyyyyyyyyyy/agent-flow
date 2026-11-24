@@ -4,7 +4,7 @@ A Claude Code plugin that takes a goal from words to a merged, checked PR in the
 
 You say what you want. The agent explores it with you through [OpenSpec](https://github.com/Fission-AI/OpenSpec) until you move on, gathers sourced facts, proposes an OpenSpec change whose every Scenario has a fixed `Verify:` command, locks those commands in a Plan PR you approve, applies the tasks in parallel, reviews once, re-runs every locked command in CI, merges only through a gate script that refuses missing or weakened evidence, and archives the change into the repo's current specs.
 
-Status: `0.0.0`, pre-release. The Method is implemented and unit-tested; it has not yet been proven end to end on a real goal.
+Status: pre-release. The installed version is the commit SHA (`claude plugin list`). The Method is implemented and unit-tested; it has not yet been proven end to end on a real goal.
 
 ## Requirements
 
