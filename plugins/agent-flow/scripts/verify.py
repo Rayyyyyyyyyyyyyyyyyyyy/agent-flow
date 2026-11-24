@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Evidence check: run every ticket criterion's Verify command; exit code alone decides.
+"""Evidence check: run every OpenSpec Scenario's Verify command; exit code alone decides.
 
-usage: verify.py [--check-only] [<tickets dir> ...]   default: every docs/*/tickets under the cwd
-A criterion is a line `- [ ] <text>` (or `- [x]`) in a ticket file, followed by an indented
-`Verify: `<command>`` line (one or more) or an `Owner judges: <how>` line.
+usage: verify.py [--check-only] [<specs dir> ...]   default: every openspec/changes/*/specs under the cwd
+A criterion is a `#### Scenario: <name>` heading in a spec file (searched recursively), followed by an
+indented `Verify: `<command>`` line (one or more) or an `Owner judges: <how>` line.
 Exit 0 every command passed (owner-judged criteria are listed, not run), 1 a command failed or a
-ticket is malformed, 2 no tickets found.
+spec is malformed, 2 no spec files found.
 
 Stdlib only, so a Calling repo's CI can run a copy of it (`.agent-flow/verify.py`) without the plugin.
 """
@@ -16,7 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-CRITERION = re.compile(r"\s*- \[[ xX]\] (.+)")
+CRITERION = re.compile(r"#### Scenario: (.+)")
 VERIFY = re.compile(r"\s+Verify: `([^`]+)`\s*$")
 OWNER = re.compile(r"\s+Owner judges: \S")
 FORBIDDEN = ["|", ";", "&", ">", "<", "$(", "$?", "\n"]
@@ -25,14 +25,14 @@ TIMEOUT = 900
 
 
 def parse(path):
-    """Return ([(line, criterion, [commands], owner)], [(line, error)]) for one ticket file."""
+    """Return ([(line, criterion, [commands], owner)], [(line, error)]) for one spec file."""
     items, errors, cur = [], [], None
     for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if m := CRITERION.fullmatch(line):
             cur = [n, m[1].strip(), [], False]
             items.append(cur)
         elif line.startswith("#"):
-            cur = None  # a heading ends the criterion above it
+            cur = None  # any other heading ends the Scenario above it
         elif cur and (m := VERIFY.match(line)):
             cur[2].append(m[1])
         elif cur and OWNER.match(line):
@@ -52,13 +52,13 @@ def parse(path):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("--check-only", action="store_true", help="validate tickets, run nothing")
+    ap.add_argument("--check-only", action="store_true", help="validate specs, run nothing")
     ap.add_argument("dirs", nargs="*")
     a = ap.parse_args(argv)
-    dirs = [Path(d) for d in a.dirs] or sorted(Path(".").glob("docs/*/tickets"))
-    files = sorted(f for d in dirs for f in d.glob("*.md"))
+    dirs = [Path(d) for d in a.dirs] or sorted(Path(".").glob("openspec/changes/*/specs"))
+    files = sorted(f for d in dirs for f in d.rglob("*.md"))
     if not files:
-        print("no ticket files found", file=sys.stderr)
+        print("no spec files found", file=sys.stderr)
         return 2
     failed = False
     for f in files:

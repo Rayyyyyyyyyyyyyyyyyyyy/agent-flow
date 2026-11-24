@@ -1,6 +1,6 @@
-# agent-flow v0.1 — contracts between tickets
+# agent-flow — contracts between scripts
 
-Every ticket follows these. A ticket that needs to change one says so in its PR and updates this file in the same PR.
+The interfaces the skill and its scripts rely on. A PR that changes one updates this file in the same PR.
 
 ## Paths
 
@@ -8,30 +8,36 @@ Every ticket follows these. A ticket that needs to change one says so in its PR 
 - Tests: `tests/test_<name>.py`, no `tests/__init__.py`. A test loads a plugin script with
   `sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "plugins/agent-flow/scripts"))` and then `import <name>`, or runs it with `subprocess` and `sys.executable`.
 - Run all tests: `python3 -m unittest discover -s tests -v`.
-- CJK check before #2 exists: `python3 scripts/no_cjk.py <dir>` (added in #1) exits 1 and prints `file:line` when it finds a CJK character, else 0.
+- CJK check: `python3 scripts/no_cjk.py <dir>` exits 1 and prints `file:line` when it finds a CJK character, else 0.
 
-## Project records (written by the skill, checked by `check_discussion.py`)
+## Project records (Calling repo)
 
-`docs/<topic>/discussion.md` has exactly these second-level headings, in this order:
+`docs/<topic>/discussion.md` has exactly these second-level headings, in this order (checked by `check_discussion.py`):
 `## Original words`, `## Finish line`, `## Authorizations`, `## Decisions`, `## Open questions`.
 Finish-line items are `- C<n> <text>`; each contains `evidence:` (case-insensitive) or a line `Evidence:` under it.
-Also in `docs/<topic>/`: `foundation.md`, `spec.md`, `tickets/<NN>-<slug>.md`. Skill map: `.agent-flow/skills.md`.
+Also `docs/<topic>/foundation.md`, the OpenSpec change `openspec/changes/<topic>/` (proposal, design, `specs/**/spec.md`, `tasks.md`), the current specs `openspec/specs/`, and the skill map `.agent-flow/skills.md`.
+
+## OpenSpec
+
+agent-flow runs `/opsx:explore`, `/opsx:propose`, `/opsx:apply`, `/opsx:archive` and reads the results; it does not change OpenSpec's files or schema. The change name is `<topic>`.
 
 ## Branches (Calling repo)
 
-Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: head `agent-flow/<topic>-plan`, base `agent-flow/<topic>`. Integration PR: head `agent-flow/<topic>`, base the default branch.
+Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: head `agent-flow/<topic>-plan`, base `agent-flow/<topic>`. Integration PR: head `agent-flow/<topic>`, base the default branch. Archive PR: head `agent-flow/<topic>-archive`, base the default branch, cut after the integration PR merged.
 
-## Ticket format (parsed by verify.py)
+## Scenario format (parsed by verify.py)
 
-- A criterion is a line `- [ ] <text>` or `- [x] <text>`.
-- Under it, indented: one or more `Verify: `<command>`` lines, or an `Owner judges: <text>` line. A `#` heading ends the criterion.
+- A criterion is a line `#### Scenario: <name>` in a spec file.
+- Under it, indented: one or more `Verify: `<command>`` lines, or an `Owner judges: <text>` line. Any other heading ends the criterion.
 - A Verify command must not contain `|`, `;`, `&`, `>`, `<`, `$(`, `$?`, nor be `sh|bash|zsh|dash|fish ... -c ...`. It runs with `shell=False` (`shlex.split`) from the cwd, timeout 900 s; exit 0 is PASS.
+- `tasks.md`: each `## N.` group's first line is `Blocked by: <numbers>` or `Blocked by: none`. verify.py does not read it.
 
 ## verify.py
 
-- CLI: `verify.py [--check-only] [<tickets dir> ...]`; default dirs: `docs/*/tickets` under the cwd. Stdlib only; a Calling repo runs a copy at `.agent-flow/verify.py`.
-- Output lines: `ERROR <file>:<line>: <reason>`, `PASS <file>:<line>: <command>`, `FAIL <file>:<line>: <command> (exit <n>)` plus up to 20 indented output lines, `OWNER <file>:<line>: <criterion>`.
-- Exit 0 all passed (owner-judged criteria listed, not run), 1 a failure or a malformed ticket, 2 no ticket files. `--check-only` validates and runs nothing.
+- CLI: `verify.py [--check-only] [<specs dir> ...]`; default dirs: `openspec/changes/*/specs` under the cwd (archived changes are not read); spec files are found recursively. Stdlib only; a Calling repo runs a copy at `.agent-flow/verify.py`.
+- Output lines: `ERROR <file>:<line>: <reason>`, `PASS <file>:<line>: <command>`, `FAIL <file>:<line>: <command> (exit <n>)` plus up to 20 indented output lines, `OWNER <file>:<line>: <scenario>`.
+- Exit 0 all passed (owner-judged Scenarios listed, not run), 1 a failure or a malformed spec, 2 no spec files. `--check-only` validates and runs nothing.
+- CI job `evidence-check` runs only on heads starting `agent-flow/` and not ending `-archive`; with `--check-only` when the base is not the default branch.
 
 ## merge_gate.py
 
@@ -39,14 +45,20 @@ Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: h
 - Reads `gh pr checks <n> --json name,state,bucket` and `gh pr view <n> --json baseRefName,headRefName,headRefOid,labels`.
 - CI: green when every bucket is `pass` or `skipping` and at least one is `pass`.
 - Label `agent-flow:owner-judges` blocks.
+- Archive PR (head ends `-archive`): `gh api repos/{owner}/{repo}/compare/<baseRefName>...<headRefOid>` must list only files under `openspec/specs/`, `openspec/changes/<topic>/` or `openspec/changes/archive/YYYY-MM-DD-<topic>/`.
 - Plan PR (head ends `-plan`): blocked unless `.agent-flow/config` has `plan: agent`.
-- Any other PR: a check named `evidence-check` must pass (the reason starts `CI ` so `land.py` treats it as pending); `gh pr list --base <head> --head <head>-plan --state merged --json mergeCommit` must return a Plan PR; `gh api repos/{owner}/{repo}/compare/<plan merge oid>...<headRefOid>` must list no file under `.agent-flow/`, `.github/workflows/` or `docs/*/tickets/`.
+- Any other PR: a check named `evidence-check` must pass (the reason starts `CI ` so `land.py` treats it as pending); `gh pr list --base <head> --head <head>-plan --state merged --json mergeCommit` must return a Plan PR; `gh api repos/{owner}/{repo}/compare/<plan merge oid>...<headRefOid>` must list no file under `.agent-flow/`, `.github/workflows/`, `openspec/changes/*/specs/`, nor `openspec/config.yaml`.
 - Kill switch, read from `--repo-root` (default cwd): `.agent-flow/STOP` exists, or `.agent-flow/config` has `merge: never`. Config lines are `key: value`, case-insensitive.
 
 ## land.py
 
 - CLI: `land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]`; imports `merge_gate.main`, so its BLOCKED lines and exit codes pass through. Exit 0 merged, 1 blocked or failed, 2 setup error.
 - Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, first run the gate and stop on any reason not starting `BLOCKED: CI` (no remote write), then `gh pr update-branch <n>` and `gh pr checks <n> --watch`; run the full gate; `gh pr merge <n> --merge --match-head-commit <headRefOid>`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>`. Any earlier failure prints why and changes nothing.
+
+## doctor.py
+
+- CLI: `doctor.py`, run from the Calling repo root. Prints `FAIL|WARN <what>` and `  Fix: <how>` per problem; exit 1 on any FAIL.
+- FAIL: no `git`; no `gh`; `gh auth status` fails; no `origin`; no push access; no `openspec` on PATH; `openspec list --json` exits non-zero (repo not initialised); Python older than 3.11. WARN: private repo on a free plan (no branch protection); HTTPS remote without the `workflow` token scope.
 
 ## Required CI checks (this repo)
 

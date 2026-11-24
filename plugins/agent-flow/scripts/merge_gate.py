@@ -2,8 +2,9 @@
 """Exit 0 only when the agent may merge a PR. Exit 1 blocked (one `BLOCKED:` line per reason), 2 setup error.
 
 Plan PR (head `<branch>-plan`, base `<branch>`): CI green and `plan: agent` in `.agent-flow/config`;
-otherwise the Owner merges it. Any other PR: CI green including the `evidence-check` job, a merged
-Plan PR for its head branch, and no change to a locked path since that Plan PR merged.
+otherwise the Owner merges it. Archive PR (head `agent-flow/<topic>-archive`): CI green and every changed file
+under `openspec/specs/`, `openspec/changes/<topic>/` or `openspec/changes/archive/<date>-<topic>/`. Any other PR: CI green including the `evidence-check`
+job, a merged Plan PR for its head branch, and no change to a locked path since that Plan PR merged.
 Always: no `agent-flow:owner-judges` label, no kill switch.
 """
 import argparse
@@ -13,9 +14,14 @@ import subprocess
 import sys
 from pathlib import Path
 
-LOCKED = re.compile(r"(\.agent-flow/|\.github/workflows/|docs/[^/]+/tickets/)")
+LOCKED = re.compile(r"(\.agent-flow/|\.github/workflows/|openspec/config\.yaml$|openspec/changes/[^/]+/specs/)")
 EVIDENCE_CHECK = "evidence-check"
 OWNER_LABEL = "agent-flow:owner-judges"
+
+
+def changed(base, head):
+    # shortcut: the compare API lists at most 300 files; enough for one goal, page it if goals grow
+    return gh("api", f"repos/{{owner}}/{{repo}}/compare/{base}...{head}", "--jq", ".files[].filename").split()
 
 
 def gh(*args):
@@ -55,7 +61,13 @@ def main(argv=None):
     if OWNER_LABEL in [l["name"] for l in view.get("labels", [])]:
         blocked.append(f"labelled {OWNER_LABEL}: the Owner judges and merges it")
     head = view["headRefName"]
-    if head.endswith("-plan"):
+    if head.endswith("-archive"):
+        topic = re.escape(head.removeprefix("agent-flow/").removesuffix("-archive"))
+        ok = re.compile(rf"openspec/(specs/|changes/{topic}/|changes/archive/\d{{4}}-\d{{2}}-\d{{2}}-{topic}/)")
+        outside = [f for f in changed(view["baseRefName"], view["headRefOid"]) if not ok.match(f)]
+        if outside:
+            blocked.append("archive PR changes files outside this change's OpenSpec paths: " + ", ".join(outside))
+    elif head.endswith("-plan"):
         if cfg.get("plan") != "agent":
             blocked.append("Plan PR: the Owner merges it (or set `plan: agent` in .agent-flow/config)")
     else:
@@ -69,10 +81,7 @@ def main(argv=None):
         if not plans:
             blocked.append(f"no merged Plan PR ({head}-plan into {head})")
         else:
-            # shortcut: the compare API lists at most 300 files; enough for one goal, page it if goals grow
-            files = gh("api", f"repos/{{owner}}/{{repo}}/compare/{plans[0]['mergeCommit']['oid']}...{view['headRefOid']}",
-                       "--jq", ".files[].filename").split()
-            locked = [f for f in files if LOCKED.match(f)]
+            locked = [f for f in changed(plans[0]["mergeCommit"]["oid"], view["headRefOid"]) if LOCKED.match(f)]
             if locked:
                 blocked.append("changes locked paths after the Plan PR (needs a new Plan PR): " + ", ".join(locked))
     if (root / ".agent-flow/STOP").exists():

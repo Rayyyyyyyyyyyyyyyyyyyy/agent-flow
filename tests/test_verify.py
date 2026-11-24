@@ -11,28 +11,32 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "plugins/agent-flow
 import verify
 
 PY = sys.executable
-TICKET = """# Add the thing
+SPEC = """## ADDED Requirements
 
-Status: open
-Blocked by: none
+### Requirement: The thing
+The system SHALL do the thing.
 
-## Acceptance
-
-- [ ] passing criterion
+#### Scenario: passing criterion
+- **WHEN** a
+- **THEN** b
   Verify: `{py} -c "pass"`
-- [ ] owner criterion
+
+#### Scenario: owner criterion
+- **THEN** it looks right
   Owner judges: open the page and look
 """
 
 
 class VerifyTest(unittest.TestCase):
-    def run_verify(self, *tickets, args=()):
+    def run_verify(self, *specs, args=()):
         root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, root)
-        d = root / "docs/t/tickets"
-        d.mkdir(parents=True)
-        for i, body in enumerate(tickets, 1):
-            (d / f"{i:02d}-x.md").write_text(body.replace("{py}", PY))
+        for i, body in enumerate(specs, 1):
+            f = root / f"openspec/changes/t/specs/cap{i}/spec.md"
+            f.parent.mkdir(parents=True)
+            f.write_text(body.replace("{py}", PY))
+        (root / "openspec/changes/archive/2026-01-01-old/specs/c").mkdir(parents=True)
+        (root / "openspec/changes/archive/2026-01-01-old/specs/c/spec.md").write_text("#### Scenario: archived\n")
         out, cwd = io.StringIO(), os.getcwd()
         os.chdir(root)
         try:
@@ -43,40 +47,40 @@ class VerifyTest(unittest.TestCase):
         return code, out.getvalue()
 
     def test_pass_and_owner_listed(self):
-        code, out = self.run_verify(TICKET)
-        self.assertEqual(code, 0, out)
-        self.assertIn("PASS docs/t/tickets/01-x.md:8", out)
-        self.assertIn("OWNER docs/t/tickets/01-x.md:10: owner criterion", out)
+        code, out = self.run_verify(SPEC)
+        self.assertEqual(code, 0, out)  # the archived spec has no Verify line and is not read
+        self.assertIn("PASS openspec/changes/t/specs/cap1/spec.md:6", out)
+        self.assertIn("OWNER openspec/changes/t/specs/cap1/spec.md:11: owner criterion", out)
 
     def test_failing_command_fails(self):
-        code, out = self.run_verify(TICKET + '- [ ] broken\n  Verify: `{py} -c "raise SystemExit(3)"`\n')
+        code, out = self.run_verify(SPEC + '#### Scenario: broken\n- **THEN** x\n  Verify: `{py} -c "raise SystemExit(3)"`\n')
         self.assertEqual(code, 1)
         self.assertIn("(exit 3)", out)
 
     def test_missing_command_fails(self):
-        code, out = self.run_verify(TICKET + "- [ ] no evidence\n")
+        code, out = self.run_verify(SPEC + "#### Scenario: no evidence\n- **THEN** x\n")
         self.assertEqual(code, 1)
         self.assertIn("has no Verify command", out)
 
-    def test_heading_ends_a_criterion(self):
-        code, out = self.run_verify("- [ ] a\n## Notes\n  Verify: `{py} -c pass`\n")
+    def test_heading_ends_a_scenario(self):
+        code, out = self.run_verify("#### Scenario: a\n### Requirement: next\n  Verify: `{py} -c pass`\n")
         self.assertEqual(code, 1)
         self.assertIn("has no Verify command", out)
 
     def test_pipes_and_shell_wrappers_rejected(self):
         for cmd in ("npm test | tail -1", "make; echo ok", "make && true", "make > out", "echo $?", "sh -c 'make'"):
-            code, out = self.run_verify(f"- [ ] c\n  Verify: `{cmd}`\n")
+            code, out = self.run_verify(f"#### Scenario: c\n  Verify: `{cmd}`\n")
             self.assertEqual(code, 1, cmd)
             self.assertIn("ERROR", out, cmd)
 
     def test_check_only_runs_nothing(self):
-        code, out = self.run_verify('- [ ] c\n  Verify: `{py} -c "raise SystemExit(1)"`\n', args=["--check-only"])
+        code, out = self.run_verify('#### Scenario: c\n  Verify: `{py} -c "raise SystemExit(1)"`\n', args=["--check-only"])
         self.assertEqual((code, out), (0, ""))
 
     def test_check_only_still_validates(self):
-        self.assertEqual(self.run_verify("- [ ] c\n", args=["--check-only"])[0], 1)
+        self.assertEqual(self.run_verify("#### Scenario: c\n", args=["--check-only"])[0], 1)
 
-    def test_no_tickets(self):
+    def test_no_specs(self):
         root = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, root)
         cwd = os.getcwd()

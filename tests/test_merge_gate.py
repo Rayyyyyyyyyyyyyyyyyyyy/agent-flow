@@ -26,7 +26,8 @@ def fake_gh(bindir, checks, head="agent-flow/t", labels=(), plans=PLAN, changed=
         "\"pr checks 7 --json name,state,bucket\") echo '%s';;\n"
         "\"pr view 7 --json baseRefName,headRefName,headRefOid,labels\") echo '%s';;\n"
         "\"pr list --base %s --head %s-plan --state merged --json mergeCommit\") echo '%s';;\n"
-        "\"api repos/{owner}/{repo}/compare/plan1...head1 --jq .files[].filename\") printf '%s\\n';;\n"
+        "\"api repos/{owner}/{repo}/compare/plan1...head1 --jq .files[].filename\"|"
+        "\"api repos/{owner}/{repo}/compare/main...head1 --jq .files[].filename\") printf '%s\\n';;\n"
         "esac\n" % (json.dumps(checks), json.dumps(view), head, head, json.dumps(plans), "\\n".join(changed)))
     (bindir / "gh").chmod(0o755)
 
@@ -74,14 +75,27 @@ class MergeGateTest(unittest.TestCase):
         self.assertIn("no merged Plan PR", out)
 
     def test_locked_paths_after_plan_block(self):
-        for path in (".agent-flow/verify.py", ".github/workflows/ci.yml", "docs/t/tickets/01-a.md"):
+        for path in (".agent-flow/verify.py", ".github/workflows/ci.yml", "openspec/config.yaml",
+                     "openspec/changes/t/specs/cap/spec.md"):
             code, out = self.gate(changed=("src/a.py", path))
             self.assertEqual(code, 1, path)
             self.assertIn("changes locked paths", out)
             self.assertIn(path, out)
 
     def test_unlocked_docs_pass(self):
-        self.assertEqual(self.gate(changed=("docs/t/discussion.md", "docs/t/foundation.md"))[0], 0)
+        self.assertEqual(self.gate(changed=("docs/t/discussion.md", "openspec/changes/t/tasks.md"))[0], 0)
+
+    def test_archive_pr_inside_openspec_passes(self):
+        files = ("openspec/specs/cap/spec.md", "openspec/changes/t/specs/cap/spec.md",
+                 "openspec/changes/archive/2026-11-24-t/specs/cap/spec.md")
+        self.assertEqual(self.gate(head="agent-flow/t-archive", checks=[GREEN[0]], plans=[], changed=files), (0, ""))
+
+    def test_archive_pr_outside_its_paths_blocks(self):
+        for path in ("src/a.py", "openspec/config.yaml", "openspec/changes/other/specs/cap/spec.md"):
+            code, out = self.gate(head="agent-flow/t-archive", checks=[GREEN[0]], changed=("openspec/specs/c/spec.md", path))
+            self.assertEqual(code, 1, path)
+            self.assertIn("archive PR changes files outside", out)
+            self.assertIn(path, out)
 
     def test_plan_pr_needs_owner(self):
         code, out = self.gate(head="agent-flow/t-plan", checks=[GREEN[0]])

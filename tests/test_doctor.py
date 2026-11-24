@@ -18,7 +18,8 @@ GH = '''case "$*" in
 *permissions.push*) echo true;;
 *.private*) echo false;;
 esac'''
-GOOD = {"git": GIT, "gh": GH}
+OPENSPEC = 'case "$*" in "list --json") echo \'{"changes":[]}\';; *) exit 1;; esac'
+GOOD = {"git": GIT, "gh": GH, "openspec": OPENSPEC}
 
 
 class DoctorTest(unittest.TestCase):
@@ -66,6 +67,18 @@ class DoctorTest(unittest.TestCase):
         code, out = self.doctor(gh=GH.replace("echo true", "echo false"))
         self.assertEqual(code, 1)
         self.assertIn("FAIL push access", out)
+
+    def test_openspec_missing(self):
+        code, out = self.doctor(openspec=None)
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL openspec not installed", out)
+        self.assertIn("npm install -g @fission-ai/openspec", out)
+
+    def test_openspec_not_initialised(self):
+        code, out = self.doctor(openspec="exit 1")
+        self.assertEqual(code, 1)
+        self.assertIn("FAIL OpenSpec cannot read this repo", out)
+        self.assertIn("openspec init", out)
 
     def test_python_too_old(self):
         with mock.patch.object(doctor.sys, "version_info", (3, 10, 0)):

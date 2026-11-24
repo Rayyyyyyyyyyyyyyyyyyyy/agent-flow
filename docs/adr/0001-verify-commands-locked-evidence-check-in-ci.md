@@ -2,12 +2,11 @@
 
 Status: accepted (2026-11-23)
 
-The Base let the reviewer choose each criterion's evidence command and expected text, then re-ran them in `audit.py` under a local sandbox. That let a criterion pass on evidence that did not test it (a sandbox-blocked command still printed the expected `exit=1`; Position-only items passed behaviour criteria; criteria the reviewer left out could not fail; "user judges" items counted as passed). We decided instead that every ticket criterion carries a Verify command written when tickets are cut, merged in the Plan PR, and locked: a ticket or integration PR that touches the rule files, CI, or `docs/<topic>/tickets/` is refused by `merge_gate.py`. The Evidence check is a CI job that runs every locked Verify command at the PR head and judges by exit code (no pipes, `;` or `echo $?`); the CI runner is the sandbox. `merge_gate.py` also refuses a PR when any criterion lacks a Verify command. The reviewer no longer supplies evidence; Review only judges quality and whether each Verify command really tests its criterion.
+The Base let the reviewer choose each criterion's evidence command and expected text, then re-ran them in `audit.py` under a local sandbox. That let a criterion pass on evidence that did not test it (a sandbox-blocked command still printed the expected `exit=1`; Position-only items passed behaviour criteria; criteria the reviewer left out could not fail; "user judges" items counted as passed). We decided instead that every Scenario in the goal's OpenSpec change carries a Verify command written at propose, merged in the Plan PR, and locked: an integration PR that touches the rule files, CI, `openspec/config.yaml` or the change's specs is refused by `merge_gate.py` (ADR 0003). The Evidence check is a CI job that runs every locked Verify command at the PR head and judges by exit code (no pipes, `;` or `echo $?`); the CI runner is the sandbox. `merge_gate.py` also refuses a PR when any Scenario lacks a Verify command. The reviewer no longer supplies evidence; Review only judges quality and whether each Verify command really tests its Scenario.
 
 ## Consequences
 
-- `audit.py`, `sandbox.py`, `canaries.py`, `pending_audits.py` and `review.py` are removed, with their tests and the bwrap / no-sandbox CI jobs.
-- A Calling repo without CI gets CI as its first ticket; a criterion that cannot run in CI (local hardware, secrets) is `owner-judges` and is never merged by the agent.
+- A Calling repo without CI gets CI as its first task group; a criterion that cannot run in CI (local hardware, secrets) is `owner-judges` and is never merged by the agent.
 - Changing a Verify command mid-run means stopping and asking the Owner.
 
 ## Considered options
