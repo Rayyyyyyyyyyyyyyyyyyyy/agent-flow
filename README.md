@@ -4,7 +4,7 @@ A Claude Code plugin that takes a goal from words to a merged, checked PR in the
 
 You say what you want. The agent explores it with you through [OpenSpec](https://github.com/Fission-AI/OpenSpec) until you move on, gathers sourced facts, proposes an OpenSpec change whose every Scenario has a fixed `Verify:` command, locks those commands in a Plan PR you approve, applies the tasks one group at a time (in parallel once you allow it), reviews once, re-runs every locked command in CI, merges only through a gate script that refuses missing or weakened evidence, and archives the change into the repo's current specs.
 
-Status: pre-release. The version is in `plugins/agent-flow/.claude-plugin/plugin.json` (`claude plugin list` shows it); every merged change to the plugin raises it, so `claude plugin update agent-flow@agent-flow` picks it up. The Method is implemented and unit-tested; it has not yet been proven end to end on a real goal.
+Status: pre-release. The version is in `plugins/agent-flow/.claude-plugin/plugin.json` (`claude plugin list` shows it) and is raised only to release: installs stay on the last released version, and `claude plugin update agent-flow@agent-flow` picks up the next one. Each new version is tagged `v<version>` and published as a GitHub release after CI passes on `main` (a pre-release while the version is 0.x). The Method is implemented and unit-tested; it has not yet been proven end to end on a real goal.
 
 ## Requirements
 
@@ -120,7 +120,6 @@ Files already written in your repos stay; delete `.agent-flow/` and the `evidenc
 python3 -m unittest discover -s tests -v
 python3 scripts/no_cjk.py plugins/agent-flow
 python3 scripts/check_package.py
-python3 scripts/check_version.py origin/main
 claude plugin validate .
 ```
 

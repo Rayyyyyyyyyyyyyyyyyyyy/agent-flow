@@ -21,11 +21,10 @@ python3 -m unittest tests.test_verify -v          # one file
 python3 -m unittest tests.test_merge_gate.MergeGateTest -v   # one class
 python3 scripts/no_cjk.py plugins/agent-flow      # shipped text must be CJK-free
 python3 scripts/check_package.py                  # personal-data / packaging checks
-python3 scripts/check_version.py origin/main      # plugin changed => version in plugin.json raised
 claude plugin validate .                          # manifest validation
 ```
 
-CI (`.github/workflows/ci.yml`) runs all of the above on macOS and Ubuntu and installs the plugin into a fresh HOME.
+CI (`.github/workflows/ci.yml`) runs all of the above on macOS and Ubuntu and installs the plugin into a fresh HOME. After `ci` passes on a push to `main`, `.github/workflows/release.yml` runs `scripts/release.py <sha>`: it creates tag and GitHub release `v<version>` once per version (`--prerelease` while 0.x; `--dry-run` prints the `gh` command).
 
 ## Architecture
 
@@ -50,5 +49,5 @@ Tests import plugin scripts by inserting `plugins/agent-flow/scripts` into `sys.
 ## Working rules from past decisions
 
 - Verification methods that create external resources, run real model calls, or spend the user's usage (E2E runs, fixture repos, canaries) need the user's explicit yes first. A fabricated fixture-repo E2E was rejected and reverted for this reason.
-- Every PR that changes `plugins/agent-flow/` raises `version` in its `plugin.json` (semver; CI fails otherwise). Without a new version Claude Code keeps the cached copy on update.
+- `version` in `plugin.json` is raised only to release, in its own PR: merging it to `main` publishes `v<version>`. Installed users stay on the last version until then (Claude Code updates only when the version string changes).
 - Check `## Open questions` in `discussion.md` before starting work; several items there are explicitly "ask the user".

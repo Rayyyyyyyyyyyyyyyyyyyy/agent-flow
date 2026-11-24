@@ -11,7 +11,7 @@ class Scaffold(unittest.TestCase):
         self.assertEqual(m["name"], "agent-flow")
         self.assertEqual(m["plugins"][0]["source"], "./plugins/agent-flow")
         p = json.loads((ROOT / "plugins/agent-flow/.claude-plugin/plugin.json").read_text())
-        # one version, in plugin.json only; CI (check_version.py) requires a bump whenever the plugin changes
+        # one version, in plugin.json only; raised only to release (release.yml tags each new one)
         self.assertRegex(p["version"], r"^\d+\.\d+\.\d+$")
         self.assertNotIn("version", m["plugins"][0])
 
