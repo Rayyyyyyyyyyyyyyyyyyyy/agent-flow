@@ -88,6 +88,11 @@ class Method(unittest.TestCase):
         for t in ["`agent-flow/<topic>-archive`", "`land.py`"]:
             self.assertIn(t, s)
 
+    def test_subagent_models(self):
+        for t in ["| Model |", "`sonnet` for apply implementers", "`opus` for every review subagent",
+                  "Each implementer (`model: sonnet`)", "fresh subagent (`model: sonnet`)", "runs on `model: opus`"]:
+            self.assertIn(t, WORKFLOW)
+
     def test_review_once(self):
         s = step(6)
         for t in ["Once per goal", "really tests its Scenario", "do not run a second"]:
