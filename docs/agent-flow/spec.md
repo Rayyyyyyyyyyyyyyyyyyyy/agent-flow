@@ -54,4 +54,4 @@ agent-flow itself owns only what no skill provides: the Boundaries, the Plan PR 
 
 ## Out of Scope
 
-Release polish (#13: README Quick Start for strangers, CHANGELOG, tag, pinned install) until the Method is done; native Windows (WSL2 documented); upgrade migration; uninstall beyond a README section.
+Release polish (#13: CHANGELOG, tag, pinned install) until the Method is done; the README exists but is revised at release; native Windows (WSL2 documented); upgrade migration; uninstall beyond a README section.
