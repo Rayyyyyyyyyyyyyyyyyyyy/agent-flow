@@ -54,6 +54,10 @@ _Avoid_: evidence command, check (when meaning one written by the reviewer)
 Re-running every locked Verify command at the PR head, with no model involved.
 _Avoid_: audit
 
+**Ruling**:
+A decision the agent makes alone where the Method leaves a choice open, recorded as `Ruling: what - why - cost if wrong`.
+_Avoid_: assumption (when meaning a decision)
+
 **Review**:
 A model's judgement of a change's quality and of whether its Verify commands really test their Scenarios.
 _Avoid_: audit

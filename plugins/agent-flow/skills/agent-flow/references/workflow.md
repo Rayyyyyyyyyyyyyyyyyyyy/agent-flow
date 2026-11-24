@@ -2,6 +2,8 @@
 
 Order: align the environment, receive, gather facts, propose and open the Plan PR, confirm with the user, apply, review, evidence check, merge, archive; then report. Do the thinking yourself (breaking down, deciding); give execution to implementer subagents and judgment of the result to a review in a separate context. Independent work may run in parallel subagents.
 
+What the Method leaves open you decide yourself and keep going: record each such decision under Decisions as `Ruling: <what you decided> - <why> - <what it costs if wrong>`. Stop only for what Boundaries lists as Ask first, or when every way forward is a guess.
+
 Commit after each step. Commit and push to working branches without asking. Every change reaches the default branch through a PR.
 
 ## Running OpenSpec
@@ -23,7 +25,7 @@ Commit after each step. Commit and push to working branches without asking. Ever
   | 6 review | <name> | Skill tool, or read <path> | opus | <one line> |
   ```
 
-- Subagent models, by alias: `sonnet` for apply implementers (step 5) and the guess check (step 3), `opus` for every review subagent (step 6). Write them in the Model column; a Calling repo may change them there. Pass the alias as `model` on every subagent call, including the ones a chosen skill starts without naming a model.
+- Subagent models, by alias, from each task group's size (step 3): `haiku` for `small`, `sonnet` for `medium`, `opus` for `large`. The guess check (step 3) runs on `sonnet`. The review (step 6) runs on `sonnet` when every group is `small`, else on `opus`. Fix-loop rounds 4-5 (step 5) run one tier above the group's model. A small model takes more turns on multi-step work, so `small` is only for a group whose tasks spell out the whole change. Write the mapping in the Model column; a Calling repo may change it there. Pass the alias as `model` on every subagent call, including the ones a chosen skill starts without naming a model.
 
 - Point the chosen skills at this layout: the change `openspec/changes/<topic>/`, records `docs/<topic>/`, glossary `GLOSSARY.md`, decisions `docs/adr/`. A review skill that looks for the originating spec gets `openspec/changes/<topic>/`.
 - Redo step 0 when the installed skills change; the new `skills.md` goes in the next Plan PR.
@@ -34,7 +36,7 @@ Fallbacks, only for a step no installed skill covers:
 |---|---|
 | Research | A subagent reads primary sources and returns only quoted lines with their path or URL. |
 | Test-first | Write the failing Verify command's test first, see it fail for the stated reason, then implement. |
-| Review | One subagent with only: the diff, `openspec/changes/<topic>/`, `foundation.md`, the Verify results. It reports findings with a concrete failing case each. |
+| Review | One subagent with only: the review package file, `openspec/changes/<topic>/`, `foundation.md`, the report files. It reports findings with a concrete failing case each. |
 | PR body | What changed, how it was checked (commands and results), the OpenSpec change. |
 
 ## 1. Receive the request
@@ -63,6 +65,7 @@ Then write the repo's own rules and verify. They can only be written after readi
 
 - Verify commands: what proves a change works here (tests, build, lint, type check). Prefer what the repo already runs. Note what they do not cover.
 - End-to-end tests: only when the repo needs them; many do not. A method that spends usage or creates external resources is asked in step 4, with its cost.
+- Checks over prose: a rule that can be checked is written as a check, not as a line in `CLAUDE.md`. A mistake seen twice (a repeated review finding, guess or failure in this repo's records) becomes a lint rule, a test or a Verify command whose failure message says how to fix it. Config that makes such checks pass or fail (lint, formatter, type checker, test runner config) is locked with `protect: <glob>` lines in `.agent-flow/config`, one glob per line, matched against repo-relative paths.
 - Merge conditions: `merge_gate.py` always requires CI green, the evidence check, a merged Plan PR, no locked-path change after it and no kill switch. The repo may add conditions; it may not remove one.
 - Where: lasting rules go in the repo's `CLAUDE.md` or `AGENTS.md`; rules for this goal only go in `docs/<topic>/`. Record what you wrote under Decisions. If the default branch has no rule requiring a PR and green CI, set it when the plan allows (`gh api` branch protection, requiring `evidence-check`); if not allowed, say so in Decisions, and `merge_gate.py` is the guard.
 
@@ -92,7 +95,7 @@ Every Scenario in `openspec/changes/<topic>/specs/**/spec.md` is one verifiable 
 - `Owner judges:` is the exception. Any PR carrying such a Scenario gets the label `agent-flow:owner-judges`; the user judges and merges it.
 - A change with no code (docs, config) still has a Verify command (a check or a build).
 
-`tasks.md` holds implementation steps only, no Verify lines. Each `## N.` group is one unit of work and its first line names its blockers: `Blocked by: 1, 2` or `Blocked by: none`.
+`tasks.md` holds implementation steps only, no Verify lines. Each `## N.` group is one unit of work and its first line names its blockers: `Blocked by: 1, 2` or `Blocked by: none`. Its second line names its size, which picks the implementer's model (step 0): `Size: small` (the tasks spell out the whole change in one or two files), `Size: medium` (several files, or integration between parts) or `Size: large` (design judgment or broad knowledge of the repo).
 
 Once per change, start a fresh subagent (`model: sonnet`) with only `openspec/changes/<topic>/`. Ask: what would you build for each task group, and where must you guess? Fix the artifacts for guesses that would change a Verify result or an interface between groups.
 
@@ -122,17 +125,27 @@ Session phases: tell the user to review and merge the Plan PR, then start apply 
 
 ## 5. Apply
 
-On `agent-flow/<topic>`. Each implementer (`model: sonnet`) gets one task group and only pointers: `openspec/changes/<topic>/`, `foundation.md`, `discussion.md`, its worktree, the integration branch, the Verify commands its group serves. It runs `/opsx:apply <topic>` for its group only, test-first with the chosen skill, and ticks the group's tasks. Always include: "Any judgment or 'I guess' you make yourself, however small, counts as a guess; report it." Report back: status (`DONE`, `GUESSED`, `BLOCKED`), commit, each Verify command with its result, the guess list, what was not verified.
+On `agent-flow/<topic>`. Task groups run one at a time, in blocker order. Only with `apply: parallel` in `.agent-flow/config` do groups whose blockers are merged run at the same time, one subagent and one worktree each. The user sets it once a goal's groups merged without an open review finding: one agent delivers mergeable work before many run.
+
+Work files live outside the tree, in `$(git rev-parse --git-common-dir)/agent-flow/<topic>/`: every worktree sees them and they are never committed. Before dispatching group N, write `group-N-brief.md` there: the group's text from `tasks.md`, the Verify commands it serves, interfaces and decisions from groups already merged, and your resolution of any ambiguity you noticed. Exact values (numbers, names, signatures) appear only in the brief.
+
+Each implementer (`model:` from its group's size, step 0) gets one task group: one line on where the group fits, the brief path introduced as "read this first: it is your requirements", pointers to `openspec/changes/<topic>/`, `foundation.md`, `discussion.md`, its worktree and the integration branch, and the report path `group-N-report.md`. Never paste earlier groups' history into a dispatch. It runs `/opsx:apply <topic>` for its group only, test-first with the chosen skill, and ticks the group's tasks. It starts no subagents of its own, reviewers included. Always include: "Any judgment or 'I guess' you make yourself, however small, counts as a guess; report it." It writes the full report to the report file: status (`DONE`, `GUESSED`, `BLOCKED`), commit, each Verify command with its result, the guess list, what was not verified. It returns only the status, the commit, one line of test results and its concerns.
 
 Merge each group into the integration branch, resolving conflicts in a separate subagent. Judge each guess: correct ones are recorded in the integration PR body; wrong ones are reverted and re-dispatched. A Scenario that is wrong itself needs a new Plan PR (Locks). After a subagent ends, check for leftover processes (`pgrep -fl`, `lsof` to confirm the owner before killing).
 
 Follow-ups inside the finish line become new Scenarios and tasks in a new Plan PR; anything beyond it goes into Decisions as a question.
 
-Stuck means: the same problem survives three different approaches; or the next step needs something only the user can give. Save the work, tell the user with options and a recommendation, and continue unblocked work.
+Fix loop, for a group whose Verify commands fail and for review findings (step 6). Rounds 1-3 go back to the same implementer (or a fresh one given the brief, the report file and the open findings). Rounds 4-5 go to a fresh implementer one model tier above, told: "a prior implementer tried this N times; the report file says what was tried". Every round fixes, re-runs the tests that cover the change, and appends the command and its output to the report file. Never fix in the coordinating session. After round 5, rule on each open finding yourself (`Ruling:`) when the spec settles it.
+
+Stuck means: a problem survives round 5 and the spec does not settle it; or the next step needs something only the user can give. Save the work, tell the user with options and a recommendation, and continue unblocked work.
 
 ## 6. Review
 
-Deterministic checks first: every Verify command passes locally and CI is green. Then one review of `git diff <default branch>...agent-flow/<topic>` with the chosen review skill; every subagent it starts runs on `model: opus`. Point it at `openspec/changes/<topic>/`, `foundation.md` and the Verify results rather than pasting them. Beyond its own checks it answers: does each Verify command really test its Scenario; does the diff stay inside the proposal's scope and out of its non-goals. One round; after fixes, re-check only the findings that failed. Record the review's cumulative tokens for the report.
+Deterministic checks first: every Verify command passes locally and CI is green. Then write the review package to the work directory (step 5): `git log --oneline`, `git diff --stat` and `git diff -U10` of `<default branch>...agent-flow/<topic>`, redirected into `review-package.md`, so the diff never passes through your own context. One review of that file with the chosen review skill; every subagent it starts runs on the review model (step 0). Point it at the package, `openspec/changes/<topic>/`, `foundation.md` and the report files rather than pasting them. It does not re-run Verify commands: their results are in CI and the report files.
+
+Beyond its own checks it answers: does each Verify command really test its Scenario; does the diff stay inside the proposal's scope and out of its non-goals; does the diff add a workaround, or a comment that explains one away instead of fixing it? Each of those is a finding. Workarounds that were in the repo before this goal are listed under Open questions, not fixed here.
+
+One round. Findings go through the fix loop (step 5); the re-review gets only the open findings and a package of the fix diff (from the head the review saw). A finding of a kind this repo's records already show becomes a check (step 2), proposed in a new Plan PR. Record the review's cumulative tokens for the report.
 
 ## 7. Evidence check
 
@@ -148,4 +161,4 @@ From the updated default branch, create `agent-flow/<topic>-archive` and run `/o
 
 ## Report
 
-Close with: finish line items, each with its evidence and result; the `user judges` items for the user; which checks failed or did not run; what was merged and archived; guesses taken and fallbacks used; the review's cumulative tokens; number of questions to the user and the reason for each. Format: [grounded-answer.md](grounded-answer.md).
+Close with: finish line items, each with its evidence and result; the `user judges` items for the user; which checks failed or did not run; what was merged and archived; guesses taken, rulings made and fallbacks used; the review's cumulative tokens; number of questions to the user and the reason for each. Format: [grounded-answer.md](grounded-answer.md).

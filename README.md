@@ -2,7 +2,7 @@
 
 A Claude Code plugin that takes a goal from words to a merged, checked PR in the repo you run it in.
 
-You say what you want. The agent explores it with you through [OpenSpec](https://github.com/Fission-AI/OpenSpec) until you move on, gathers sourced facts, proposes an OpenSpec change whose every Scenario has a fixed `Verify:` command, locks those commands in a Plan PR you approve, applies the tasks in parallel, reviews once, re-runs every locked command in CI, merges only through a gate script that refuses missing or weakened evidence, and archives the change into the repo's current specs.
+You say what you want. The agent explores it with you through [OpenSpec](https://github.com/Fission-AI/OpenSpec) until you move on, gathers sourced facts, proposes an OpenSpec change whose every Scenario has a fixed `Verify:` command, locks those commands in a Plan PR you approve, applies the tasks one group at a time (in parallel once you allow it), reviews once, re-runs every locked command in CI, merges only through a gate script that refuses missing or weakened evidence, and archives the change into the repo's current specs.
 
 Status: pre-release. The installed version is the commit SHA (`claude plugin list`). The Method is implemented and unit-tested; it has not yet been proven end to end on a real goal.
 
@@ -73,8 +73,8 @@ To pick up after a crash or on another machine, run the same command with the sa
 | 2 Gather | Writes `docs/<topic>/foundation.md`: every fact with a source, the rest marked `assumption`; writes the repo's own rules |
 | 3 Propose | `/opsx:propose` writes `openspec/changes/<topic>/` with a `Verify:` command under every Scenario; adds the `evidence-check` CI job; opens the Plan PR |
 | 4 Confirm | Shows you the goal and the task groups and waits for your answer; merging the Plan PR is the go-ahead |
-| 5 Apply | `/opsx:apply`, ready task groups in parallel on `agent-flow/<topic>` |
-| 6 Review | One review of the integration PR, reporting its token use |
+| 5 Apply | `/opsx:apply`, one task group at a time on `agent-flow/<topic>` (ready groups in parallel with `apply: parallel`); each group's model follows its size |
+| 6 Review | One review of the integration PR, handed over as one diff file, reporting its token use |
 | 7 Evidence check | CI re-runs every locked `Verify:` command at the PR head |
 | 8 Merge | `land.py` runs `merge_gate.py`, updates a branch that is behind, and merges with a merge commit |
 | 9 Archive | `/opsx:archive` folds the change into `openspec/specs/`, merged through the gate |
@@ -84,7 +84,8 @@ OpenSpec runs explore, propose, apply and archive (see `docs/adr/0003`). For res
 ## Safety
 
 - **Plan PR**: you merge it yourself, which is your approval of every `Verify:` command before anything is built. Put `plan: agent` in `.agent-flow/config` to let the agent merge it.
-- **Locks**: after the Plan PR merges, `.agent-flow/**`, `.github/workflows/**`, `openspec/config.yaml` and `openspec/changes/<topic>/specs/**` change only through a new Plan PR. The gate refuses any other PR that touches them; the archive PR may change only its change's OpenSpec paths.
+- **Locks**: after the Plan PR merges, `.agent-flow/**`, `.github/workflows/**`, `openspec/config.yaml` and `openspec/changes/<topic>/specs/**` change only through a new Plan PR. The gate refuses any other PR that touches them; the archive PR may change only its change's OpenSpec paths. Add `protect: <glob>` lines to `.agent-flow/config` to lock more, such as lint or test config.
+- **Guard hook**: the plugin's `guard.py` runs before every edit and shell command in a repo that has `.agent-flow/`. On `agent-flow/*` branches it refuses writes to locked paths when they happen, not only at merge; on any branch it asks you before force pushes, `reset --hard`, `clean -f`, recursive `rm` and other commands that can delete work. In repos without `.agent-flow/` it does nothing.
 - **Owner-judged criteria**: a PR labelled `agent-flow:owner-judges` is never merged by the agent.
 - **Kill switch**: create `.agent-flow/STOP`, or put `merge: never` in `.agent-flow/config`. PRs still open; nothing merges. Interrupt the session to stop everything.
 - **Asks first**: deploying or publishing, writing to repos or services you do not own, notifying other people, using secrets, spending money, deleting your data, any browser use, and verification that creates external resources or spends your usage.
@@ -96,7 +97,7 @@ Running the skill in a repo is your consent to branch, commit, push, open PRs, s
 ```text
 .agent-flow/skills.md         step-to-skill map
 .agent-flow/verify.py         copy of the Evidence check script, run by CI
-.agent-flow/config            optional: plan: agent, merge: never
+.agent-flow/config            optional: plan: agent, merge: never, apply: parallel, protect: <glob>
 .github/workflows/...         the evidence-check job
 docs/<topic>/discussion.md    your words, finish line, decisions, open questions
 docs/<topic>/foundation.md    sourced facts

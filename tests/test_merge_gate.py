@@ -82,6 +82,14 @@ class MergeGateTest(unittest.TestCase):
             self.assertIn("changes locked paths", out)
             self.assertIn(path, out)
 
+    def test_protect_globs_block(self):
+        config = "protect: .eslintrc*\nProtect: src/Generated/*.ts\n"
+        for path in (".eslintrc.json", "src/Generated/api.ts"):
+            code, out = self.gate(config=config, changed=("src/a.py", path))
+            self.assertEqual(code, 1, path)
+            self.assertIn(path, out)
+        self.assertEqual(self.gate(config=config, changed=("src/generated/api.ts",))[0], 0)
+
     def test_unlocked_docs_pass(self):
         self.assertEqual(self.gate(changed=("docs/t/discussion.md", "openspec/changes/t/tasks.md"))[0], 0)
 
