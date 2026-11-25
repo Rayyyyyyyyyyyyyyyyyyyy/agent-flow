@@ -5,7 +5,7 @@ agent-flow is the skill-workflow method abstracted into a plugin that any repo i
 ## Language
 
 **Method**:
-The rules and steps that take a request to merged, checked PRs: align the environment, receive, gather, propose, confirm, apply, review, check evidence, merge, archive.
+The rules and steps that take a request to merged, checked PRs: align the environment, receive, gather, propose, confirm, apply, code review, test check, merge, archive. It is abstract: it sets the floor, and the Calling repo's OpenSpec change says what is accepted.
 _Avoid_: workflow, flow (when meaning the rules rather than one run)
 
 **Plugin**:
@@ -35,7 +35,7 @@ The gathered facts a goal is built on, each with its source; a fact with no sour
 _Avoid_: research notes, context
 
 **OpenSpec change**:
-The goal's `openspec/changes/<topic>/`: proposal, design, specs whose Scenarios carry the Verify commands, and tasks.
+The goal's `openspec/changes/<topic>/`: proposal, design, specs whose Scenarios carry the Verify commands, and tasks; each task in `tasks.md` is one unit of acceptance for the Review.
 _Avoid_: ticket, spec (when meaning the whole change)
 
 **Current specs**:
@@ -50,14 +50,18 @@ _Avoid_: confirmation, spec PR
 A command fixed before implementation under a Scenario, whose exit code alone decides whether that Scenario passes.
 _Avoid_: evidence command, check (when meaning one written by the reviewer)
 
-**Evidence check**:
-Re-running every locked Verify command at the PR head, with no model involved.
-_Avoid_: audit
+**Test check**:
+CI re-running every locked Verify command, the program tests, at the PR head, with no model involved. Its CI job keeps the name `evidence-check` from before ADR 0005, so Calling repos already set up need no change.
+_Avoid_: evidence check, evidence (when meaning test results), audit
 
 **Ruling**:
 A decision the agent makes alone where the Method leaves a choice open, recorded as `Ruling: what - why - cost if wrong`.
 _Avoid_: assumption (when meaning a decision)
 
 **Review**:
-A model's judgement of a change's quality and of whether its Verify commands really test their Scenarios.
-_Avoid_: audit
+A code review by a model that implemented nothing in the change: it reads the diff against each task in `tasks.md` and gives each `PASS` or `FAIL` with evidence; it also judges quality, scope, and whether the Verify commands really test their Scenarios.
+_Avoid_: audit, test (when meaning the review)
+
+**Review evidence**:
+The Review's per-task table (`| Task | Verdict | Evidence |`, evidence being `file:line` in the diff and the covering test, or why none), posted as a PR comment that names the reviewed commit; `merge_gate.py` merges nothing without it.
+_Avoid_: approval, sign-off, evidence check

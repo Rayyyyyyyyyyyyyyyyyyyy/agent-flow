@@ -1,6 +1,6 @@
 # Workflow detail
 
-Order: align the environment, receive, gather facts, propose and open the Plan PR, confirm with the user, apply, review, evidence check, merge, archive; then report. Do the thinking yourself (breaking down, deciding); give execution to implementer subagents and judgment of the result to a review in a separate context. Independent work may run in parallel subagents.
+Order: align the environment, receive, gather facts, propose and open the Plan PR, confirm with the user, apply, code review, test check, merge, archive; then report. Do the thinking yourself (breaking down, deciding); give execution to implementer subagents and judgment of the result to a review in a separate context. Independent work may run in parallel subagents.
 
 What the Method leaves open you decide yourself and keep going: record each such decision under Decisions as `Ruling: <what you decided> - <why> - <what it costs if wrong>`. Stop only for what Boundaries lists as Ask first, or when every way forward is a guess.
 
@@ -27,7 +27,7 @@ Commit after each step. Commit and push to working branches without asking. Ever
 
 - Subagent models, by alias, from each task group's size (step 3): `haiku` for `small`, `sonnet` for `medium`, `opus` for `large`. The guess check (step 3) runs on `sonnet`. The review (step 6) runs on `sonnet` when every group is `small`, else on `opus`. Fix-loop rounds 4-5 (step 5) run one tier above the group's model. A small model takes more turns on multi-step work, so `small` is only for a group whose tasks spell out the whole change. Write the mapping in the Model column; a Calling repo may change it there. Pass the alias as `model` on every subagent call, including the ones a chosen skill starts without naming a model.
 
-- Point the chosen skills at this layout: the change `openspec/changes/<topic>/`, records `docs/<topic>/`, glossary `GLOSSARY.md`, decisions `docs/adr/`. A review skill that looks for the originating spec gets `openspec/changes/<topic>/`.
+- Point the chosen skills at this layout: the change `openspec/changes/<topic>/`, records `docs/<topic>/`, glossary `GLOSSARY.md`, decisions `docs/adr/`. The review skill is a code-review skill: it reads the code, and the spec it checks it against is `openspec/changes/<topic>/tasks.md`, one verdict per task, with the rest of `openspec/changes/<topic>/` as context.
 - Redo step 0 when the installed skills change; the new `skills.md` goes in the next Plan PR.
 
 Fallbacks, only for a step no installed skill covers:
@@ -36,7 +36,7 @@ Fallbacks, only for a step no installed skill covers:
 |---|---|
 | Research | A subagent reads primary sources and returns only quoted lines with their path or URL. |
 | Test-first | Write the failing Verify command's test first, see it fail for the stated reason, then implement. |
-| Review | One subagent with only: the review package file, `openspec/changes/<topic>/`, `foundation.md`, the report files. It reports findings with a concrete failing case each. |
+| Review | One subagent that implemented nothing in this change, with only: the review package file, `openspec/changes/<topic>/`, `foundation.md`, the report files. It returns the per-task table (step 6) and findings with a concrete failing case each. |
 | PR body | What changed, how it was checked (commands and results), the OpenSpec change. |
 
 ## 1. Receive the request
@@ -66,7 +66,7 @@ Then write the repo's own rules and verify. They can only be written after readi
 - Verify commands: what proves a change works here (tests, build, lint, type check). Prefer what the repo already runs. Note what they do not cover.
 - End-to-end tests: only when the repo needs them; many do not. A method that spends usage or creates external resources is asked in step 4, with its cost.
 - Checks over prose: a rule that can be checked is written as a check, not as a line in `CLAUDE.md`. A mistake seen twice (a repeated review finding, guess or failure in this repo's records) becomes a lint rule, a test or a Verify command whose failure message says how to fix it. Config that makes such checks pass or fail (lint, formatter, type checker, test runner config) is locked with `protect: <glob>` lines in `.agent-flow/config`, one glob per line, matched against repo-relative paths.
-- Merge conditions: `merge_gate.py` always requires CI green, the evidence check, a merged Plan PR, no locked-path change after it and no kill switch. The repo may add conditions; it may not remove one.
+- Merge conditions: `merge_gate.py` always requires CI green, the test check, review evidence for every task, a merged Plan PR, no locked-path change after it and no kill switch. The repo may add conditions; it may not remove one.
 - Where: lasting rules go in the repo's `CLAUDE.md` or `AGENTS.md`; rules for this goal only go in `docs/<topic>/`. Record what you wrote under Decisions. If the default branch has no rule requiring a PR and green CI, set it when the plan allows (`gh api` branch protection, requiring `evidence-check`); if not allowed, say so in Decisions, and `merge_gate.py` is the guard.
 
 Missing infrastructure that blocks evidence (raw data or logs, version and commit mapping, a reproducible environment) becomes the first task groups. Using secrets, money or the user's own data, a need for accounts you do not have, and browser use go to the user first (Boundaries, Ask first).
@@ -139,21 +139,35 @@ Fix loop, for a group whose Verify commands fail and for review findings (step 6
 
 Stuck means: a problem survives round 5 and the spec does not settle it; or the next step needs something only the user can give. Save the work, tell the user with options and a recommendation, and continue unblocked work.
 
-## 6. Review
+## 6. Code review
 
-Deterministic checks first: every Verify command passes locally and CI is green. Then write the review package to the work directory (step 5): `git log --oneline`, `git diff --stat` and `git diff -U10` of `<default branch>...agent-flow/<topic>`, redirected into `review-package.md`, so the diff never passes through your own context. One review of that file with the chosen review skill; every subagent it starts runs on the review model (step 0). Point it at the package, `openspec/changes/<topic>/`, `foundation.md` and the report files rather than pasting them. It does not re-run Verify commands: their results are in CI and the report files.
+agent-flow does not decide what is accepted; the OpenSpec change the user approved does. Each task in `tasks.md` is one unit of acceptance, and the review checks the code against it. CI's tests (step 7) are a different check: they run programs, the review reads code.
 
-Beyond its own checks it answers: does each Verify command really test its Scenario; does the diff stay inside the proposal's scope and out of its non-goals; does the diff add a workaround, or a comment that explains one away instead of fixing it? Each of those is a finding. Workarounds that were in the repo before this goal are listed under Open questions, not fixed here.
+Deterministic checks first: every Verify command passes locally and CI is green. Then write the review package to the work directory (step 5): `git log --oneline`, `git diff --stat` and `git diff -U10` of `<default branch>...agent-flow/<topic>`, redirected into `review-package.md`, so the diff never passes through your own context. One review of that file with the chosen code-review skill, in a context that implemented nothing in this change; every subagent it starts runs on the review model (step 0). Point it at the package, `openspec/changes/<topic>/`, `foundation.md` and the report files rather than pasting them. It does not re-run Verify commands: their results are in CI and the report files.
 
-One round. Findings go through the fix loop (step 5); the re-review gets only the open findings and a package of the fix diff (from the head the review saw). A finding of a kind this repo's records already show becomes a check (step 2), proposed in a new Plan PR. Record the review's cumulative tokens for the report.
+For every task in `tasks.md` (ids as OpenSpec writes them, `- [x] 1.1 ...`) the reviewer finds the code that does it and gives a verdict: `PASS` only with code-level evidence, `file:line` in the diff and the test that covers it, or why no test does; otherwise `FAIL` with what is missing. A ticked box is not evidence. Beyond the tasks it answers: does each Verify command really test its Scenario; does the diff stay inside the proposal's scope and out of its non-goals; does the diff add a workaround, or a comment that explains one away instead of fixing it? Each of those is a finding. Workarounds that were in the repo before this goal are listed under Open questions, not fixed here.
 
-## 7. Evidence check
+Write the table to `review-evidence.md` in the work directory and post it on the integration PR as the review evidence record with `gh pr comment <n> --body-file <file>`. Its first line names the head the review read, full sha; findings may follow the table:
 
-The `evidence-check` CI job on the integration PR. A red job is fixed in code, never by changing a spec, test or CI (Never, Locks).
+```markdown
+<!-- agent-flow:review commit=<full sha of the reviewed head> -->
+| Task | Verdict | Evidence |
+|---|---|---|
+| 1.1 | PASS | src/export.ts:12-30; tests/export.test.ts "writes one row per record" |
+| 1.2 | FAIL | src/button.tsx:8 adds the button; no test covers the disabled state |
+```
+
+`merge_gate.py` reads the latest such comment and refuses the PR unless every task in `tasks.md` is ticked and has a `PASS` row with evidence, and every commit added after the reviewed one is a merge (such as `land.py` updating the branch from the default branch). The gate checks that a review happened on this code, not that it was honest: never post a record for a review that did not happen, and never change a verdict without the reviewer.
+
+One round. Findings and `FAIL` rows go through the fix loop (step 5); the re-review gets only the open findings and a package of the fix diff (from the head the review saw), and posts a new complete table for the new head: it re-judges the tasks the fix diff touches or that were `FAIL`, and carries the other rows over. A finding of a kind this repo's records already show becomes a check (step 2), proposed in a new Plan PR. Record the review's cumulative tokens for the report.
+
+## 7. Test check
+
+The program tests: the `evidence-check` CI job on the integration PR runs every locked Verify command (the job keeps the name it had before review evidence existed, so repos already set up need no change). A red job is fixed in code, never by changing a spec, test or CI (Never, Locks).
 
 ## 8. Merge
 
-`land.py <pr> [--worktree <dir>] [--repo-root <dir>]` runs the `merge_gate.py` checks, updates the branch and waits for checks when it is behind, merges with a merge commit (`gh pr merge <n> --merge`), and only after `gh pr view --json state` says MERGED removes the worktree and deletes the local and remote branch. Do not poll or clean up by hand. Any failure prints why and touches nothing. Never squash, so `git revert -m 1 <sha>` undoes it. Deploy and publish are outside the Method: ask first.
+`land.py <pr> [--worktree <dir>] [--repo-root <dir>]` runs the `merge_gate.py` checks, updates the branch and waits for checks when it is behind, merges with a merge commit (`gh pr merge <n> --merge`), and only after `gh pr view --json state` says MERGED removes the worktree and deletes the local and remote branch. Do not poll or clean up by hand. Any failure prints why and touches nothing. A merge from the default branch added by that update keeps the review evidence valid; any other commit after the review needs a new review. Never squash, so `git revert -m 1 <sha>` undoes it. Deploy and publish are outside the Method: ask first.
 
 ## 9. Archive
 
@@ -161,4 +175,4 @@ From the updated default branch, create `agent-flow/<topic>-archive` and run `/o
 
 ## Report
 
-Close with: finish line items, each with its evidence and result; the `user judges` items for the user; which checks failed or did not run; what was merged and archived; guesses taken, rulings made and fallbacks used; the review's cumulative tokens; number of questions to the user and the reason for each. Format: [grounded-answer.md](grounded-answer.md).
+Close with: finish line items, each with its evidence and result; the review evidence record's link; the `user judges` items for the user; which checks failed or did not run; what was merged and archived; guesses taken, rulings made and fallbacks used; the review's cumulative tokens; number of questions to the user and the reason for each. Format: [grounded-answer.md](grounded-answer.md).

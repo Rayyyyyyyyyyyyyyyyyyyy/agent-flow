@@ -2,7 +2,9 @@
 
 A Claude Code plugin that takes a goal from words to a merged, checked PR in the repo you run it in.
 
-You say what you want. The agent explores it with you through [OpenSpec](https://github.com/Fission-AI/OpenSpec) until you move on, gathers sourced facts, proposes an OpenSpec change whose every Scenario has a fixed `Verify:` command, locks those commands in a Plan PR you approve, applies the tasks one group at a time (in parallel once you allow it), reviews once, re-runs every locked command in CI, merges only through a gate script that refuses missing or weakened evidence, and archives the change into the repo's current specs.
+You say what you want. The agent explores it with you through [OpenSpec](https://github.com/Fission-AI/OpenSpec) until you move on, gathers sourced facts, proposes an OpenSpec change whose tasks say what is accepted and whose every Scenario has a fixed `Verify:` command (the program tests), locks those commands in a Plan PR you approve, applies the tasks one group at a time (in parallel once you allow it), has a reviewer who did not write the code check it against each task and post PASS or FAIL with evidence per task, re-runs every locked command in CI, merges only through a gate script that refuses missing, failed or stale evidence and weakened tests, and archives the change into the repo's current specs.
+
+agent-flow is an abstract method: it cannot know what your repo should accept, so it sets only the floor. What is accepted is the OpenSpec change you approve.
 
 Status: pre-release. The version is in `plugins/agent-flow/.claude-plugin/plugin.json` (`claude plugin list` shows it) and is raised only to release: installs stay on the last released version, and `claude plugin update agent-flow@agent-flow` picks up the next one. Each new version is tagged `v<version>` and published as a GitHub release after CI passes on `main` (a pre-release while the version is 0.x). The Method is implemented and unit-tested; it has not yet been proven end to end on a real goal.
 
@@ -74,9 +76,9 @@ To pick up after a crash or on another machine, run the same command with the sa
 | 3 Propose | `/opsx:propose` writes `openspec/changes/<topic>/` with a `Verify:` command under every Scenario; adds the `evidence-check` CI job; opens the Plan PR |
 | 4 Confirm | Shows you the goal and the task groups and waits for your answer; merging the Plan PR is the go-ahead |
 | 5 Apply | `/opsx:apply`, one task group at a time on `agent-flow/<topic>` (ready groups in parallel with `apply: parallel`); each group's model follows its size |
-| 6 Review | One review of the integration PR, handed over as one diff file, reporting its token use |
-| 7 Evidence check | CI re-runs every locked `Verify:` command at the PR head |
-| 8 Merge | `land.py` runs `merge_gate.py`, updates a branch that is behind, and merges with a merge commit |
+| 6 Code review | A reviewer that is not the implementer reads the integration PR's diff against each task in `tasks.md` and posts a table on the PR: `PASS` or `FAIL` per task with `file:line` and the covering test; reports its token use |
+| 7 Test check | CI's `evidence-check` job re-runs every locked `Verify:` command (the program tests) at the PR head |
+| 8 Merge | `land.py` runs `merge_gate.py` (green tests, every task `PASS` in the latest review table on the current code), updates a branch that is behind, and merges with a merge commit |
 | 9 Archive | `/opsx:archive` folds the change into `openspec/specs/`, merged through the gate |
 
 OpenSpec runs explore, propose, apply and archive (see `docs/adr/0003`). For research and review agent-flow brings no skills of its own; it uses whatever this session has installed (see `docs/adr/0002`).
@@ -86,6 +88,7 @@ OpenSpec runs explore, propose, apply and archive (see `docs/adr/0003`). For res
 - **Plan PR**: you merge it yourself, which is your approval of every `Verify:` command before anything is built. Put `plan: agent` in `.agent-flow/config` to let the agent merge it.
 - **Locks**: after the Plan PR merges, `.agent-flow/**`, `.github/workflows/**`, `openspec/config.yaml` and `openspec/changes/<topic>/specs/**` change only through a new Plan PR. The gate refuses any other PR that touches them; the archive PR may change only its change's OpenSpec paths. Add `protect: <glob>` lines to `.agent-flow/config` to lock more, such as lint or test config.
 - **Guard hook**: the plugin's `guard.py` runs before every edit and shell command in a repo that has `.agent-flow/`. On `agent-flow/*` branches it refuses writes to locked paths when they happen, not only at merge; on any branch it asks you before force pushes, `reset --hard`, `clean -f`, recursive `rm` and other commands that can delete work. In repos without `.agent-flow/` it does nothing.
+- **Review evidence**: the gate refuses an implementation PR unless the latest review table covers every task in `tasks.md` with `PASS` and evidence, every task is ticked, and nothing but merges was pushed after the reviewed commit. It catches a skipped or stale review, not a dishonest one (`docs/adr/0005`).
 - **Owner-judged criteria**: a PR labelled `agent-flow:owner-judges` is never merged by the agent.
 - **Kill switch**: create `.agent-flow/STOP`, or put `merge: never` in `.agent-flow/config`. PRs still open; nothing merges. Interrupt the session to stop everything.
 - **Asks first**: deploying or publishing, writing to repos or services you do not own, notifying other people, using secrets, spending money, deleting your data, any browser use, and verification that creates external resources or spends your usage.
@@ -96,9 +99,9 @@ Running the skill in a repo is your consent to branch, commit, push, open PRs, s
 
 ```text
 .agent-flow/skills.md         step-to-skill map
-.agent-flow/verify.py         copy of the Evidence check script, run by CI
+.agent-flow/verify.py         copy of the test check script, run by CI
 .agent-flow/config            optional: plan: agent, merge: never, apply: parallel, protect: <glob>
-.github/workflows/...         the evidence-check job
+.github/workflows/...         the evidence-check job (the program tests)
 docs/<topic>/discussion.md    your words, finish line, decisions, open questions
 docs/<topic>/foundation.md    sourced facts
 openspec/changes/<topic>/     the OpenSpec change (proposal, design, specs, tasks)

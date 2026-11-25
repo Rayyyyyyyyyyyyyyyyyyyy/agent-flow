@@ -1,6 +1,6 @@
 """The shipped rules state the boundaries (C6), resume (C13), cost (C14), repo rules (C16),
-Environment alignment (C17), propose, confirm and Plan PR (C18), locks (C19), Evidence check (C20),
-owner-judged items (C22), archive (C23)."""
+Environment alignment (C17), propose, confirm and Plan PR (C18), locks (C19), test check (C20),
+owner-judged items (C22), archive (C23), code review and review evidence (C25)."""
 import unittest
 from pathlib import Path
 
@@ -32,6 +32,15 @@ class Boundaries(unittest.TestCase):
                   "commit secrets or print them"]:
             self.assertIn(s, BOUNDARIES)
 
+    def test_floor(self):  # C25
+        for s in ["the floor every Calling repo keeps", "count a task as done without code-level evidence",
+                  "merge without a review evidence record that passes every task", "no evidence, no merge",
+                  "the reviewer is never the implementer"]:
+            self.assertIn(s, BOUNDARIES)
+        for s in ["abstract method", "sets only the floor", "each task in its `tasks.md` is accepted only on a code review's evidence",
+                  "its Verify commands are the program tests CI runs"]:
+            self.assertIn(s, SKILL)
+
     def test_boundaries_printed_on_first_run(self):
         self.assertIn("The Ask first and Never lists from Boundaries.", SKILL)
 
@@ -40,7 +49,7 @@ class Method(unittest.TestCase):
     def test_steps_in_order(self):
         steps = ["0. **Align the environment.**", "1. **Receive the request.**", "2. **Gather facts.**",
                  "3. **Propose and open the Plan PR.**", "4. **Confirm with the user.**", "5. **Apply.**",
-                 "6. **Review.**", "7. **Evidence check.**", "8. **Merge.**", "9. **Archive.**"]
+                 "6. **Code review.**", "7. **Test check.**", "8. **Merge.**", "9. **Archive.**"]
         positions = [SKILL.index(s) for s in steps]
         self.assertEqual(positions, sorted(positions))
         self.assertNotIn("10. **", SKILL)
@@ -124,6 +133,26 @@ class Method(unittest.TestCase):
         for t in ["Once per goal", "really tests its Scenario", "do not run a second", "handed over as one file",
                   "adds a workaround or a comment excusing one"]:
             self.assertIn(t, s)
+
+    def test_code_review_per_task(self):  # C25
+        s = step(6)
+        for t in ["a reviewer that is not the implementer", "code-review skill",
+                  "each task in `openspec/changes/<topic>/tasks.md`", "`PASS` or `FAIL`", "`file:line` in the diff",
+                  "the test that covers it or why none does", "That per-task table is the evidence",
+                  "review evidence record", "a new complete table for the new head"]:
+            self.assertIn(t, s)
+        self.assertIn("runs every locked Verify command", step(7))
+        self.assertIn("program tests", step(7))
+        self.assertIn("review evidence for every task on the current code", step(8))
+        self.assertIn("Link the review evidence record", SKILL)
+
+    def test_review_evidence_record(self):  # C25
+        for t in ["code-review skill: it reads the code", "`openspec/changes/<topic>/tasks.md`, one verdict per task",
+                  "<!-- agent-flow:review commit=<full sha of the reviewed head> -->", "| Task | Verdict | Evidence |",
+                  "A ticked box is not evidence", "`gh pr comment <n> --body-file <file>`", "reads the latest such comment",
+                  "every commit added after the reviewed one is a merge", "never post a record for a review that did not happen",
+                  "implemented nothing in this change", "keeps the review evidence valid"]:
+            self.assertIn(t, WORKFLOW)
 
     def test_review_package(self):  # P5, P9
         for t in ["`review-package.md`", "It does not re-run Verify commands", "a package of the fix diff",

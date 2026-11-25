@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Evidence check: run every OpenSpec Scenario's Verify command; exit code alone decides.
+"""Test check (CI job `evidence-check`): run every OpenSpec Scenario's Verify command; exit code alone decides.
 
 usage: verify.py [--check-only] [<specs dir> ...]   default: every openspec/changes/*/specs under the cwd
 A criterion is a `#### Scenario: <name>` heading in a spec file (searched recursively), followed by an

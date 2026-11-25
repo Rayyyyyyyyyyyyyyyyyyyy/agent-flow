@@ -14,4 +14,4 @@ The Owner chose OpenSpec for four steps of the Method in every Calling repo: `/o
 - ADR 0002 now covers only the steps OpenSpec does not: research, test-first inside apply, review, PR body, retrospective.
 - A Calling repo needs Node and OpenSpec; doctor stops the run until the user installs and inits it.
 - `/opsx:apply` works through `tasks.md` in one session; parallel work comes from agent-flow giving each `## N.` group (with its `Blocked by:` line) to its own subagent and worktree.
-- What archive's sync writes into `openspec/specs/` happens after the Evidence check and affects no gate.
+- What archive's sync writes into `openspec/specs/` happens after the test check and the review evidence and affects no gate.
