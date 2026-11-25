@@ -13,6 +13,9 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "plugins/agent-flow/scripts"))
 import land
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from test_merge_gate import GLAB_HEADER  # noqa: E402
+
 GREEN = [{"name": "verify", "state": "SUCCESS", "bucket": "pass"}, {"name": "evidence-check", "state": "SUCCESS", "bucket": "pass"}]
 
 
@@ -119,6 +122,55 @@ class LandTest(unittest.TestCase):
         self.assertIn("FAILED:", out)
         self.assertTrue(self.wt.exists())
         self.assertTrue(all(self.branches()))
+
+    def test_gitlab_merged_then_cleaned(self):
+        code, out = self.land_gitlab()
+        self.assertEqual(code, 0, out)
+        self.assertIn("api projects/:fullpath/merge_requests/7/merge -X PUT -f sha=abc123", self.log)
+        self.assertFalse(self.wt.exists())
+        self.assertEqual(self.branches(), ("", ""))
+
+    def test_gitlab_merge_refused_touches_nothing(self):
+        code, out = self.land_gitlab(refuse=True)
+        self.assertEqual(code, 1)
+        self.assertIn("FAILED: merge", out)
+        self.assertTrue(self.wt.exists())
+        self.assertTrue(all(self.branches()))
+
+    def test_gitlab_deleted_source_branch_on_merge(self):  # project default "Delete source branch"
+        code, out = self.land_gitlab(delete_source=True)
+        self.assertEqual(code, 0, out)
+        self.assertFalse(self.wt.exists())
+        self.assertEqual(self.branches(), ("", ""))
+
+    def land_gitlab(self, refuse=False, delete_source=False):
+        """Like land(), with `forge: gitlab` and a fake glab; the gate's MR reads are canned."""
+        self.land(refuse_merge=True)  # builds repo, origin, worktree; this gh run refuses and touches nothing
+        tmp = self.root.parent
+        (self.root / ".agent-flow").mkdir(exist_ok=True)
+        (self.root / ".agent-flow/config").write_text("forge: gitlab\n")
+        log, merged = tmp / "glab.log", tmp / "glab-merged"
+        mr = {"target_branch": "main", "source_branch": "t/01", "sha": "abc123", "labels": [], "head_pipeline": {"id": 9, "sha": "abc123", "status": "success"}}
+        jobs = [{"name": "test", "status": "success"}, {"name": "evidence-check", "status": "success"}]
+        (tmp / "bin/glab").write_text(
+            GLAB_HEADER + "echo \"$*\" >> %s\ncase \"$*\" in\n"
+            "\"api projects/:fullpath/merge_requests/7\") if [ -f %s ]; then s=merged; else s=opened; fi; echo '%s' | sed s/STATE/$s/;;\n"
+            "\"api projects/:fullpath/pipelines/9/jobs --paginate\") echo '%s';;\n"
+            "*merge_requests?state=merged*) echo '[{\"merge_commit_sha\":\"p1\",\"sha\":\"x\"}]';;\n"
+            "*repository/compare*) echo '{\"diffs\":[{\"old_path\":\"src/a.py\",\"new_path\":\"src/a.py\"}]}';;\n"
+            "\"api projects/:fullpath/merge_requests/7/merge -X PUT -f sha=abc123\") %s;;\n"
+            "*) exit 1;;\nesac\n" % (log, merged, json.dumps({**mr, "state": "STATE"}), json.dumps(jobs),
+                                     "echo 405 >&2; exit 1" if refuse else "touch " + str(merged)
+                                     + (" && git --git-dir=%s update-ref -d refs/heads/t/01" % self.origin if delete_source else "")
+                                     + " && echo '{}'"))
+        (tmp / "bin/glab").chmod(0o755)
+        out = io.StringIO()
+        with mock.patch.dict(os.environ, {"PATH": str(tmp / "bin") + os.pathsep + os.environ["PATH"]}), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(out), \
+                mock.patch.object(land.merge_gate, "origin", return_value=("gitlab.example.dev", "o/r")):
+            code = land.main(["7", "--worktree", str(self.wt), "--repo-root", str(self.root)])
+        self.log = log.read_text() if log.exists() else ""
+        return code, out.getvalue()
 
     def test_setup_error_without_gh(self):
         with mock.patch.dict(os.environ, {"PATH": ""}), contextlib.redirect_stderr(io.StringIO()):

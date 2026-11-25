@@ -44,7 +44,8 @@ agent-flow itself owns only what no other tool provides: the Boundaries, the Pla
 - Repo layout: the repo is the marketplace; the plugin lives in `plugins/agent-flow/`; repo tooling (`scripts/`, `tests/`, CI) stays outside it.
 - Base: skill-workflow `31114d7`, frozen; where the Owner changed the Method, the Owner's decision wins.
 - OpenSpec is fixed for explore, propose, apply and archive; agent-flow runs its commands and reads its files, and leaves installing and `openspec init` to the user (ADR 0003). Other steps use skills chosen per Calling repo, never bundled or declared as dependencies (ADR 0002).
-- Verify commands sit under Scenarios in `openspec/changes/<topic>/specs/`, are fixed in the Plan PR and locked with `.agent-flow/**`, `.github/workflows/**` and `openspec/config.yaml`; `tasks.md` is not locked. The Evidence check is a CI job; `merge_gate.py` refuses: locked paths touched, a Scenario without a Verify command, pipes / `;` / `$?` in a Verify command, the Evidence check job not green, an unapproved Plan PR, an archive PR outside its OpenSpec paths, the `agent-flow:owner-judges` label, the kill switch (ADR 0001).
+- Verify commands sit under Scenarios in `openspec/changes/<topic>/specs/`, are fixed in the Plan PR and locked with `.agent-flow/**`, `.github/workflows/**`, `.gitlab-ci.yml` and `openspec/config.yaml`; `tasks.md` is not locked. The Evidence check is a CI job; `merge_gate.py` refuses: locked paths touched, a Scenario without a Verify command, pipes / `;` / `$?` in a Verify command, the Evidence check job not green, an unapproved Plan PR, an archive PR outside its OpenSpec paths, the `agent-flow:owner-judges` label, the kill switch (ADR 0001).
+- Forges: GitHub through `gh`, GitLab through `glab api` (a PR is a merge request; the evidence-check job lives in `.gitlab-ci.yml`). The forge is `forge:` in `.agent-flow/config`, else GitLab when origin's URL contains `gitlab`.
 
 ## Testing Decisions
 

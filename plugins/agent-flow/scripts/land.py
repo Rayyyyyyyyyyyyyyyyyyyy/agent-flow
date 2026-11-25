@@ -31,10 +31,16 @@ def main(argv=None):
     ap.add_argument("--repo-root", default=".")
     a = ap.parse_args(argv)
     root = a.repo_root
+    mr = f"projects/:fullpath/merge_requests/{a.pr}"
     try:
-        info = json.loads(run(["gh", "pr", "view", a.pr, "--json", "headRefName,mergeStateStatus"], root)[1])
-    except (OSError, json.JSONDecodeError):
-        print("setup error: gh pr view gave no JSON (is gh installed?)", file=sys.stderr)
+        on_gitlab = merge_gate.forge(Path(root)) == "gitlab"
+        if on_gitlab:  # a merge-commit project merges a behind MR as is (doctor.py requires that merge method)
+            m = merge_gate.glab(root, mr)
+            info = {"headRefName": m["source_branch"], "mergeStateStatus": "", "headRefOid": m["sha"]}
+        else:
+            info = json.loads(run(["gh", "pr", "view", a.pr, "--json", "headRefName,mergeStateStatus"], root)[1])
+    except (ValueError, KeyError) as e:
+        print(f"setup error: gh pr view or glab api failed or gave no JSON (installed and logged in?): {e}", file=sys.stderr)
         return 2
     if info["mergeStateStatus"] == "BEHIND":
         out = io.StringIO()  # CI may still be running; every other BLOCKED reason stops before any remote write
@@ -49,18 +55,26 @@ def main(argv=None):
             return fail("update-branch: " + out)
         run(["gh", "pr", "checks", a.pr, "--watch"], root)  # result is judged by the gate below
     try:  # read before the gate: the merge then refuses any commit pushed after it, which the gate never saw
-        sha = json.loads(run(["gh", "pr", "view", a.pr, "--json", "headRefOid"], root)[1])["headRefOid"]
-    except (json.JSONDecodeError, KeyError):
+        sha = (info["headRefOid"] if on_gitlab else
+               json.loads(run(["gh", "pr", "view", a.pr, "--json", "headRefOid"], root)[1])["headRefOid"])
+    except (ValueError, KeyError):
         return fail("could not read the PR head commit")
     rc = merge_gate.main([a.pr, "--repo-root", root])
     if rc:
         return rc
-    rc, out = run(["gh", "pr", "merge", a.pr, "--merge", "--match-head-commit", sha], root)
-    if rc:
-        return fail("merge: " + out)
+    if on_gitlab:
+        try:  # merges only while the head is still `sha`
+            merge_gate.glab(root, mr + "/merge", "-X", "PUT", "-f", "sha=" + sha)
+        except ValueError as e:
+            return fail(f"merge: {e}".strip())
+    else:
+        rc, out = run(["gh", "pr", "merge", a.pr, "--merge", "--match-head-commit", sha], root)
+        if rc:
+            return fail("merge: " + out)
     try:
-        state = json.loads(run(["gh", "pr", "view", a.pr, "--json", "state"], root)[1])["state"]
-    except (json.JSONDecodeError, KeyError):
+        state = (merge_gate.glab(root, mr)["state"] if on_gitlab else
+                 json.loads(run(["gh", "pr", "view", a.pr, "--json", "state"], root)[1])["state"]).upper()
+    except (ValueError, KeyError):
         return fail("merge returned 0 but the PR state is unreadable; worktree and branches left in place")
     if state != "MERGED":
         return fail(f"merge not confirmed (state {state}); worktree and branches left in place")
@@ -70,7 +84,7 @@ def main(argv=None):
     if rc:
         return fail("merged, but could not locate the main checkout: " + common)
     main_dir = str(Path(common).parent)
-    # the forge may already have deleted the source branch on merge (e.g. GitHub's auto-delete head branches)
+    # the forge may already have deleted the source branch on merge (GitLab "Delete source branch", GitHub auto-delete)
     gone = run(["git", "ls-remote", "--exit-code", "--heads", "origin", branch], main_dir)[0] == 2
     steps = ([["git", "worktree", "remove", a.worktree]] if a.worktree else []) + [
         ["git", "branch", "-D", branch]] + ([] if gone else [["git", "push", "origin", "--delete", branch]])

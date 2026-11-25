@@ -7,6 +7,8 @@ under `openspec/specs/`, `openspec/changes/<topic>/` or `openspec/changes/archiv
 job, a merged Plan PR for its head branch, and no change to a locked path (or a `protect:` glob from
 `.agent-flow/config`) since that Plan PR merged.
 Always: no `agent-flow:owner-judges` label, no kill switch.
+On GitLab (origin host contains `gitlab`, or `forge: gitlab` in the config) a PR is a merge request, read through
+`glab api` on origin's project and host.
 """
 import argparse
 import fnmatch
@@ -14,11 +16,115 @@ import json
 import re
 import subprocess
 import sys
+import urllib.parse
 from pathlib import Path
 
-LOCKED = re.compile(r"(\.agent-flow/|\.github/workflows/|openspec/config\.yaml$|openspec/changes/[^/]+/specs/)")
+LOCKED = re.compile(r"(\.agent-flow/|\.github/workflows/|\.gitlab-ci\.yml$|openspec/config\.yaml$|openspec/changes/[^/]+/specs/)")
 EVIDENCE_CHECK = "evidence-check"
 OWNER_LABEL = "agent-flow:owner-judges"
+
+
+def origin(root):
+    """(host, project path) of the `origin` remote; ValueError when it is missing or not a host URL."""
+    try:
+        r = subprocess.run(("git", "remote", "get-url", "origin"), cwd=root, capture_output=True, text=True)
+    except OSError as e:
+        raise ValueError(e)
+    url = r.stdout.strip()
+    if "://" in url:
+        u = urllib.parse.urlsplit(url)
+        host = (u.hostname or "") + (f":{u.port}" if u.port and u.scheme in ("http", "https") else "")
+        path = u.path
+    elif m := re.fullmatch(r"(?:[^@/]+@)?([^:/]+):(.+)", url):  # scp-like: git@host:group/project.git
+        host, path = m.groups()
+    else:
+        raise ValueError(f"origin is not a host URL: {url!r}")
+    path = path.strip("/").removesuffix(".git")
+    if not host or "/" not in path:
+        raise ValueError(f"origin is not a project URL: {url!r}")
+    return host, path
+
+
+def glab(root, path, *flags):
+    """`glab api` on origin's project, parsed; raises ValueError on any failure so a GitLab read never fails open.
+
+    `:fullpath` is filled from origin here: glab's own placeholder follows an `upstream` remote when one exists.
+    """
+    host, project = origin(root)
+    path = path.replace(":fullpath", urllib.parse.quote(project, safe=""))
+    try:
+        r = subprocess.run(("glab", "api", "--hostname", host, path) + flags, cwd=root, capture_output=True, text=True)
+    except OSError as e:
+        raise ValueError(e)
+    if r.returncode:
+        raise ValueError(r.stderr)
+    return json.loads(r.stdout)
+
+
+def forge(root):
+    """`github` or `gitlab`: the config's `forge:` key, else whether origin's host names gitlab. ValueError on a bad key."""
+    if cfg := config(root).get("forge"):
+        if cfg not in ("github", "gitlab"):
+            raise ValueError(f".agent-flow/config has forge: {cfg}; use github or gitlab")
+        return cfg
+    try:
+        return "gitlab" if "gitlab" in origin(root)[0].lower() else "github"
+    except ValueError:
+        return "github"
+
+
+def bucket(job):
+    """A GitLab job status in `gh pr checks` bucket terms."""
+    s = job["status"]
+    if s == "success":
+        return "pass"
+    if s == "skipped" or (job.get("allow_failure") and s in ("failed", "manual")):
+        return "skipping"
+    return "fail" if s in ("failed", "canceled") else "pending"
+
+
+def gitlab_facts(root, pr):
+    """(checks, view, plan merge shas, changed(base, head)) for a GitLab MR, in the shapes the GitHub path uses."""
+    q = urllib.parse.quote
+    mr = glab(root, f"projects/:fullpath/merge_requests/{pr}")
+    pipe = mr.get("head_pipeline") or {}
+    checks = []
+    # shortcut: a merged results pipeline runs on the merge ref (another sha), so it reads as no pipeline and the MR
+    # stays blocked; check that ref's parents to support it once a Calling repo uses one
+    if pipe.get("sha") == mr["sha"]:  # a pipeline of an older commit says nothing about this one
+        jobs = glab(root, f"projects/:fullpath/pipelines/{pipe['id']}/jobs", "--paginate")
+        # the pipeline's own status also covers trigger (bridge) jobs, which the jobs list leaves out
+        checks = [{"name": "pipeline", "bucket": bucket(pipe)}] + [{"name": j["name"], "bucket": bucket(j)} for j in jobs]
+    view = {"baseRefName": mr["target_branch"], "headRefName": mr["source_branch"], "headRefOid": mr["sha"],
+            "labels": [{"name": l} for l in mr["labels"]]}
+    head = view["headRefName"]
+    plans = [] if head.endswith(("-plan", "-archive")) else glab(
+        root, f"projects/:fullpath/merge_requests?state=merged&source_branch={q(head + '-plan', safe='')}"
+              f"&target_branch={q(head, safe='')}", "--paginate")
+
+    def diff(base, to):
+        c = glab(root, f"projects/:fullpath/repository/compare?from={q(base, safe='')}&to={q(to, safe='')}")
+        if c.get("compare_timeout"):
+            raise ValueError("compare incomplete")
+        # GitLab truncates diffs at its diff_max_files setting (500 at the lowest) without saying so
+        if len(c["diffs"]) >= 500:
+            raise ValueError("compare lists 500 or more files and may be truncated; the Owner checks this PR")
+        return sorted({p for d in c["diffs"] for p in (d["old_path"], d["new_path"])})
+    # merge_commit_sha is null after a fast-forward merge; the source head is then on the target
+    return checks, view, [p.get("merge_commit_sha") or p["sha"] for p in plans], diff
+
+
+def github_facts(root, pr):
+    """(checks, view, plan merge shas, changed(base, head)) for a GitHub PR."""
+    checks = json.loads(gh("pr", "checks", pr, "--json", "name,state,bucket"))
+    view = json.loads(gh("pr", "view", pr, "--json", "baseRefName,headRefName,headRefOid,labels"))
+    head = view["headRefName"]
+    try:  # only a PR other than a Plan or archive PR needs its Plan PR; none found blocks it
+        plans = [] if head.endswith(("-plan", "-archive")) else json.loads(
+            gh("pr", "list", "--base", head, "--head", head + "-plan", "--state", "merged", "--json", "mergeCommit") or "[]")
+    except json.JSONDecodeError:
+        plans = []
+    return checks, view, [p["mergeCommit"]["oid"] for p in plans], changed
 
 
 def changed(base, head):
@@ -68,17 +174,10 @@ def main(argv=None):
     a = ap.parse_args(argv)
     root = Path(a.repo_root)
     try:
-        checks = json.loads(gh("pr", "checks", a.pr, "--json", "name,state,bucket"))
-        view = json.loads(gh("pr", "view", a.pr, "--json", "baseRefName,headRefName,headRefOid,labels"))
-        head = view["headRefName"]
-        try:  # only a PR other than a Plan or archive PR needs its Plan PR; none found blocks it
-            plans = [] if head.endswith(("-plan", "-archive")) else json.loads(
-                gh("pr", "list", "--base", head, "--head", head + "-plan", "--state", "merged", "--json", "mergeCommit") or "[]")
-        except json.JSONDecodeError:
-            plans = []
-        return gate(root, checks, view, [p["mergeCommit"]["oid"] for p in plans], changed)
+        facts = gitlab_facts if forge(root) == "gitlab" else github_facts
+        return gate(root, *facts(root, a.pr))
     except (ValueError, KeyError, TypeError) as e:
-        print(f"setup error: a gh call failed or gave no usable JSON (installed and logged in?): {e}", file=sys.stderr)
+        print(f"setup error: a gh or glab call failed or gave no usable JSON (installed and logged in?): {e}", file=sys.stderr)
         return 2
 
 

@@ -58,13 +58,13 @@ A missing script is a blocker to report, not to emulate. When the goal is merged
 
 ## Locks
 
-Once the Plan PR is merged, these paths change only through a new Plan PR: `.agent-flow/**`, `.github/workflows/**`, `openspec/config.yaml`, `openspec/changes/<topic>/specs/**`. `tasks.md` is not locked, so apply can tick it. `merge_gate.py` refuses any other PR that changes a locked path after its Plan PR merged; it lets the archive PR change only this change's OpenSpec paths. A Calling repo locks more paths, such as its lint or test config, with `protect: <glob>` lines in `.agent-flow/config`. On any `agent-flow/*` branch except a `-plan` one, the `guard.py` hook denies edits and shell writes to locked and protected paths when they are attempted; `merge_gate.py` still checks every PR. If a Verify command or rule turns out wrong, stop and ask the user; do not edit it to make a gate pass.
+Once the Plan PR is merged, these paths change only through a new Plan PR: `.agent-flow/**`, `.github/workflows/**`, `.gitlab-ci.yml`, `openspec/config.yaml`, `openspec/changes/<topic>/specs/**`. `tasks.md` is not locked, so apply can tick it. `merge_gate.py` refuses any other PR that changes a locked path after its Plan PR merged; it lets the archive PR change only this change's OpenSpec paths. A Calling repo locks more paths, such as its lint or test config, with `protect: <glob>` lines in `.agent-flow/config`. On any `agent-flow/*` branch except a `-plan` one, the `guard.py` hook denies edits and shell writes to locked and protected paths when they are attempted; `merge_gate.py` still checks every PR. If a Verify command or rule turns out wrong, stop and ask the user; do not edit it to make a gate pass.
 
 A Scenario only a person can judge carries `Owner judges:`; the PR that carries it gets the label `agent-flow:owner-judges`, which `merge_gate.py` refuses, so the user judges and merges it. Prefer putting such criteria in the finish line only, where they are listed in the report and block nothing.
 
 ## Resume rule
 
-Branches are `agent-flow/<topic>` (integration), `agent-flow/<topic>-plan` (Plan PR) and `agent-flow/<topic>-archive` (archive PR); the change is `openspec/changes/<topic>/`. Before creating a branch, change or PR, look for the existing one (`git ls-remote --heads origin 'agent-flow/<topic>*'`, `gh pr list --state all --head <branch>`, `openspec list --json`) and reuse it. Re-running after a crash must leave exactly one Plan PR, one integration PR, one archive PR and one OpenSpec change.
+Branches are `agent-flow/<topic>` (integration), `agent-flow/<topic>-plan` (Plan PR) and `agent-flow/<topic>-archive` (archive PR); the change is `openspec/changes/<topic>/`. Before creating a branch, change or PR, look for the existing one (`git ls-remote --heads origin 'agent-flow/<topic>*'`, `gh pr list --state all --head <branch>` or `glab mr list -R <origin URL> --all --source-branch <branch>`, `openspec list --json`) and reuse it. Re-running after a crash must leave exactly one Plan PR, one integration PR, one archive PR and one OpenSpec change.
 
 ## Reporting
 

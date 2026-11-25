@@ -90,6 +90,8 @@ This phase is the Method; release waits for #13.
 - 2026-11-24 agent: not taken from those sources: superpowers' ban on parallel implementers (worktrees isolate), gstack "Boil the Ocean" (against scope), ECC `verification-loop` (pipes in checks), per-tool telemetry hooks, deleting most comments, screenshots or E2E by default (E2E stays per project).
 - 2026-11-24 user (「不要留歷史混淆你自己」「都刪,tickets.md 也刪」): records hold the current state only. Deleted: `parity.md`, `docs/research/sandbox-for-audit-reruns.md`, `docs/agent-flow/reviews/`, `references/tickets.md`, and superseded Decisions.
 - 2026-11-25 Owner (archive PR blocked with `CI has no passing check` in a Calling repo): the `evidence-check` job runs on every `agent-flow/` head, reading only that change's specs through `verify.py --head`; the archive PR validates its archived copy, so it always has a passing check. The skill replaces an older `evidence-check` job that differs.
+- 2026-11-25 user (「改 agent-flow 可支援 GitLab」, after doctor failed on a GitLab origin): GitLab is supported through `glab`; doctor requires the Merge commit method, since land.py merges without updating a behind branch.
+- 2026-11-25 agent, fixing the GitLab review findings at the Owner's 「修」: branch protection keeps parity: on GitLab the default branch is protected with pushes from No one, and Pipelines must succeed stays off, since it also blocks the team's MRs that run no pipeline. GitHub's free-plan warning has no GitLab counterpart: protected branches exist on every GitLab tier. Merged results pipelines are not read yet; such an MR stays blocked (fail closed) and the Owner merges it.
 
 ## Open questions
 
