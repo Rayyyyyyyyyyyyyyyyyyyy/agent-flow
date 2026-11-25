@@ -117,7 +117,7 @@ Copy `${CLAUDE_PLUGIN_ROOT}/scripts/verify.py` to `.agent-flow/verify.py` when i
           REF: ${{ github.head_ref }}
 ```
 
-On GitLab, add this job to `.gitlab-ci.yml` instead (create it if missing), replacing an `evidence-check` job that differs, with an image that has `python3` and the repo's runtime (the repo's own build image usually does). Keep its own `before_script` (the repo's setup, or `[]`) so it never inherits one from `default:`:
+On GitLab, add this job to `.gitlab-ci.yml` instead (create it if missing), replacing an `evidence-check` job that differs, with an image that has `python3` and the repo's runtime (the repo's own build image usually does). Keep its own `before_script` (the repo's setup, or `[]`) so it never inherits one from `default:`. When the file lists `stages:`, set `stage:` to one of them (a job left in the default `test` stage that the list lacks makes the whole file invalid):
 
 ```yaml
 evidence-check:
