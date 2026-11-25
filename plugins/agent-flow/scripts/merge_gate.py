@@ -22,8 +22,18 @@ OWNER_LABEL = "agent-flow:owner-judges"
 
 
 def changed(base, head):
-    # shortcut: the compare API lists at most 300 files; enough for one goal, page it if goals grow
-    return gh("api", f"repos/{{owner}}/{{repo}}/compare/{base}...{head}", "--jq", ".files[].filename").split()
+    """Files changed from base to head; ValueError when the list cannot be trusted."""
+    try:
+        r = subprocess.run(("gh", "api", f"repos/{{owner}}/{{repo}}/compare/{base}...{head}", "--jq", ".files[].filename"),
+                           capture_output=True, text=True)
+    except OSError as e:
+        raise ValueError(e)
+    if r.returncode:  # gh prints its error body on stdout, which would read as file names
+        raise ValueError("gh api compare failed: " + (r.stderr or r.stdout).strip())
+    files = r.stdout.split()
+    if len(files) >= 300:  # the compare API stops listing at 300 files without saying so
+        raise ValueError("compare lists 300 or more files and may be cut short; the Owner checks this PR")
+    return files
 
 
 def gh(*args):
@@ -60,9 +70,20 @@ def main(argv=None):
     try:
         checks = json.loads(gh("pr", "checks", a.pr, "--json", "name,state,bucket"))
         view = json.loads(gh("pr", "view", a.pr, "--json", "baseRefName,headRefName,headRefOid,labels"))
-    except json.JSONDecodeError:
-        print("setup error: gh gave no JSON (is gh installed and logged in?)", file=sys.stderr)
+        head = view["headRefName"]
+        try:  # only a PR other than a Plan or archive PR needs its Plan PR; none found blocks it
+            plans = [] if head.endswith(("-plan", "-archive")) else json.loads(
+                gh("pr", "list", "--base", head, "--head", head + "-plan", "--state", "merged", "--json", "mergeCommit") or "[]")
+        except json.JSONDecodeError:
+            plans = []
+        return gate(root, checks, view, [p["mergeCommit"]["oid"] for p in plans], changed)
+    except (ValueError, KeyError, TypeError) as e:
+        print(f"setup error: a gh call failed or gave no usable JSON (installed and logged in?): {e}", file=sys.stderr)
         return 2
+
+
+def gate(root, checks, view, plans, changed_files):
+    """BLOCKED reasons for one PR from its checks, view, merged Plan PR commits and a changed_files(base, head)."""
     cfg = config(root)
     blocked = []
     buckets = [c["bucket"] for c in checks]
@@ -77,7 +98,7 @@ def main(argv=None):
     if head.endswith("-archive"):
         topic = re.escape(head.removeprefix("agent-flow/").removesuffix("-archive"))
         ok = re.compile(rf"openspec/(specs/|changes/{topic}/|changes/archive/\d{{4}}-\d{{2}}-\d{{2}}-{topic}/)")
-        outside = [f for f in changed(view["baseRefName"], view["headRefOid"]) if not ok.match(f)]
+        outside = [f for f in changed_files(view["baseRefName"], view["headRefOid"]) if not ok.match(f)]
         if outside:
             blocked.append("archive PR changes files outside this change's OpenSpec paths: " + ", ".join(outside))
     elif head.endswith("-plan"):
@@ -86,16 +107,11 @@ def main(argv=None):
     else:
         if not any(c["name"] == EVIDENCE_CHECK and c["bucket"] == "pass" for c in checks):
             blocked.append(f"CI has no passing {EVIDENCE_CHECK} job")
-        try:
-            plans = json.loads(gh("pr", "list", "--base", head, "--head", head + "-plan", "--state", "merged",
-                                  "--json", "mergeCommit") or "[]")
-        except json.JSONDecodeError:
-            plans = []
         if not plans:
             blocked.append(f"no merged Plan PR ({head}-plan into {head})")
         else:
             globs = protected(root)
-            locked = [f for f in changed(plans[0]["mergeCommit"]["oid"], view["headRefOid"]) if is_locked(f, globs)]
+            locked = [f for f in changed_files(plans[0], view["headRefOid"]) if is_locked(f, globs)]
             if locked:
                 blocked.append("changes locked paths after the Plan PR (needs a new Plan PR): " + ", ".join(locked))
     if (root / ".agent-flow/STOP").exists():

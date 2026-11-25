@@ -48,13 +48,13 @@ def main(argv=None):
         if rc:
             return fail("update-branch: " + out)
         run(["gh", "pr", "checks", a.pr, "--watch"], root)  # result is judged by the gate below
-    rc = merge_gate.main([a.pr, "--repo-root", root])
-    if rc:
-        return rc
-    try:
+    try:  # read before the gate: the merge then refuses any commit pushed after it, which the gate never saw
         sha = json.loads(run(["gh", "pr", "view", a.pr, "--json", "headRefOid"], root)[1])["headRefOid"]
     except (json.JSONDecodeError, KeyError):
         return fail("could not read the PR head commit")
+    rc = merge_gate.main([a.pr, "--repo-root", root])
+    if rc:
+        return rc
     rc, out = run(["gh", "pr", "merge", a.pr, "--merge", "--match-head-commit", sha], root)
     if rc:
         return fail("merge: " + out)
@@ -70,8 +70,10 @@ def main(argv=None):
     if rc:
         return fail("merged, but could not locate the main checkout: " + common)
     main_dir = str(Path(common).parent)
+    # the forge may already have deleted the source branch on merge (e.g. GitHub's auto-delete head branches)
+    gone = run(["git", "ls-remote", "--exit-code", "--heads", "origin", branch], main_dir)[0] == 2
     steps = ([["git", "worktree", "remove", a.worktree]] if a.worktree else []) + [
-        ["git", "branch", "-D", branch], ["git", "push", "origin", "--delete", branch]]
+        ["git", "branch", "-D", branch]] + ([] if gone else [["git", "push", "origin", "--delete", branch]])
     for cmd in steps:
         rc, out = run(cmd, main_dir)
         if rc:

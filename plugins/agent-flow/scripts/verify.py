@@ -7,8 +7,8 @@ usage: verify.py [--check-only] [<specs dir> ...]   default: every openspec/chan
        openspec/changes/archive/YYYY-MM-DD-<topic>/specs, any other head runs openspec/changes/<topic>/specs.
 A criterion is a `#### Scenario: <name>` heading in a spec file (searched recursively), followed by an
 indented `Verify: `<command>`` line (one or more) or an `Owner judges: <how>` line.
-Exit 0 every command passed (owner-judged criteria are listed, not run), 1 a command failed or a
-spec is malformed, 2 no spec files found.
+Exit 0 every command passed (owner-judged criteria are listed, not run), 1 a command failed, a
+spec is malformed or no Scenario was found, 2 no spec files found.
 
 Stdlib only, so a Calling repo's CI can run a copy of it (`.agent-flow/verify.py`) without the plugin.
 """
@@ -46,10 +46,15 @@ def parse(path):
             errors.append((n, f"criterion has no Verify command and is not owner-judged: {text}"))
         for c in cmds:
             bad = [t for t in FORBIDDEN if t in c]
-            argv = shlex.split(c) if not bad else []
             if bad:
                 errors.append((n, f"Verify command uses {' '.join(bad)} (exit code must come from one command): {c}"))
-            elif argv and Path(argv[0]).name in SHELLS and "-c" in argv:
+                continue
+            try:
+                argv = shlex.split(c)
+            except ValueError:
+                errors.append((n, f"Verify command has unbalanced quotes: {c}"))
+                continue
+            if argv and Path(argv[0]).name in SHELLS and "-c" in argv:
                 errors.append((n, f"Verify command wraps a shell: {c}"))
     return items, errors
 
@@ -76,9 +81,10 @@ def main(argv=None):
     if not files:
         print("no spec files found", file=sys.stderr)
         return 2
-    failed = False
+    failed, found = False, 0
     for f in files:
         items, errors = parse(f)
+        found += len(items)
         for n, msg in errors:
             print(f"ERROR {f}:{n}: {msg}")
             failed = True
@@ -98,6 +104,9 @@ def main(argv=None):
                 else:
                     failed = True
                     print(f"FAIL {f}:{n}: {c} (exit {code})\n" + "\n".join("  " + l for l in out.splitlines()[-20:]))
+    if not found:  # e.g. `####Scenario:` with no space: nothing would be verified, yet nothing would fail
+        print("ERROR no `#### Scenario:` heading in " + ", ".join(map(str, dirs)))
+        failed = True
     return 1 if failed else 0
 
 

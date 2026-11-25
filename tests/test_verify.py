@@ -106,5 +106,15 @@ class VerifyTest(unittest.TestCase):
     def test_head_outside_agent_flow_is_usage_error(self):
         self.assertEqual(self.run_verify(SPEC, args=["--head", "feature/x"])[0], 2)
 
+    def test_no_scenario_found_fails(self):  # a typo in the heading must not pass with nothing run
+        code, out = self.run_verify("####Scenario: typo\n  Verify: `{py} -c \"raise SystemExit(1)\"`\n")
+        self.assertEqual(code, 1)
+        self.assertIn("no `#### Scenario:` heading", out)
+
+    def test_unbalanced_quotes_is_an_error_line(self):
+        code, out = self.run_verify("#### Scenario: q\n  Verify: `{py} -c \"print(1)`\n", args=["--check-only"])
+        self.assertEqual(code, 1)
+        self.assertIn("unbalanced quotes", out)
+
 if __name__ == "__main__":
     unittest.main()

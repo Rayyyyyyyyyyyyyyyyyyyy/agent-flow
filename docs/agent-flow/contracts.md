@@ -36,14 +36,14 @@ Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: h
 
 - CLI: `verify.py [--check-only] [<specs dir> ...]`; default dirs: `openspec/changes/*/specs` under the cwd (archived changes are not read); spec files are found recursively. Stdlib only; a Calling repo runs a copy at `.agent-flow/verify.py`.
 - Output lines: `ERROR <file>:<line>: <reason>`, `PASS <file>:<line>: <command>`, `FAIL <file>:<line>: <command> (exit <n>)` plus up to 20 indented output lines, `OWNER <file>:<line>: <scenario>`.
-- Exit 0 all passed (owner-judged Scenarios listed, not run), 1 a failure or a malformed spec, 2 no spec files. `--check-only` validates and runs nothing.
+- Exit 0 all passed (owner-judged Scenarios listed, not run), 1 a failure, a malformed spec (including unbalanced quotes in a Verify command) or no `#### Scenario:` at all, 2 no spec files. `--check-only` validates and runs nothing.
 - `verify.py --head agent-flow/<topic>[-plan|-archive]` (no specs dirs with it): a `-plan` head validates `openspec/changes/<topic>/specs` (`--check-only`), an `-archive` head validates `openspec/changes/archive/YYYY-MM-DD-<topic>/specs` (`--check-only`; none found is exit 2), any other head runs `openspec/changes/<topic>/specs`. A head not starting `agent-flow/` is exit 2.
 - CI job `evidence-check` runs only on heads starting `agent-flow/`, as `python3 .agent-flow/verify.py --head <head branch>`.
 
 ## merge_gate.py
 
 - CLI: `merge_gate.py <pr-number> [--repo-root <dir>]`; exit 0 mergeable, 1 blocked (reasons printed one per line, each starting `BLOCKED:`), 2 setup error.
-- Reads `gh pr checks <n> --json name,state,bucket` and `gh pr view <n> --json baseRefName,headRefName,headRefOid,labels`.
+- Reads `gh pr checks <n> --json name,state,bucket` and `gh pr view <n> --json baseRefName,headRefName,headRefOid,labels`. A `gh api .../compare` that fails, or lists 300 files (the API's silent limit), is a setup error (exit 2).
 - CI: green when every bucket is `pass` or `skipping` and at least one is `pass`.
 - Label `agent-flow:owner-judges` blocks.
 - Archive PR (head ends `-archive`): `gh api repos/{owner}/{repo}/compare/<baseRefName>...<headRefOid>` must list only files under `openspec/specs/`, `openspec/changes/<topic>/` or `openspec/changes/archive/YYYY-MM-DD-<topic>/`.
@@ -58,7 +58,7 @@ Optional. Keys: `plan: agent` (the agent may land the Plan PR), `merge: never` (
 ## land.py
 
 - CLI: `land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]`; imports `merge_gate.main`, so its BLOCKED lines and exit codes pass through. Exit 0 merged, 1 blocked or failed, 2 setup error.
-- Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, first run the gate and stop on any reason not starting `BLOCKED: CI` (no remote write), then `gh pr update-branch <n>` and `gh pr checks <n> --watch`; run the full gate; `gh pr merge <n> --merge --match-head-commit <headRefOid>`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>`. Any earlier failure prints why and changes nothing.
+- Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, first run the gate and stop on any reason not starting `BLOCKED: CI` (no remote write), then `gh pr update-branch <n>` and `gh pr checks <n> --watch`; read `headRefOid`, then run the full gate (a commit pushed after that read is refused by the merge); `gh pr merge <n> --merge --match-head-commit <headRefOid>`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>` (skipped when `git ls-remote --exit-code --heads origin <branch>` exits 2: the forge deleted it on merge). Any earlier failure prints why and changes nothing.
 
 ## guard.py
 

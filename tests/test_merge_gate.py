@@ -18,7 +18,7 @@ GREEN = [{"name": "verify", "state": "SUCCESS", "bucket": "pass"},
 PLAN = [{"mergeCommit": {"oid": "plan1"}}]
 
 
-def fake_gh(bindir, checks, head="agent-flow/t", labels=(), plans=PLAN, changed=("src/a.py",)):
+def fake_gh(bindir, checks, head="agent-flow/t", labels=(), plans=PLAN, changed=("src/a.py",), compare_fails=False):
     view = {"baseRefName": "main", "headRefName": head, "headRefOid": "head1",
             "labels": [{"name": l} for l in labels]}
     (bindir / "gh").write_text(
@@ -27,8 +27,9 @@ def fake_gh(bindir, checks, head="agent-flow/t", labels=(), plans=PLAN, changed=
         "\"pr view 7 --json baseRefName,headRefName,headRefOid,labels\") echo '%s';;\n"
         "\"pr list --base %s --head %s-plan --state merged --json mergeCommit\") echo '%s';;\n"
         "\"api repos/{owner}/{repo}/compare/plan1...head1 --jq .files[].filename\"|"
-        "\"api repos/{owner}/{repo}/compare/main...head1 --jq .files[].filename\") printf '%s\\n';;\n"
-        "esac\n" % (json.dumps(checks), json.dumps(view), head, head, json.dumps(plans), "\\n".join(changed)))
+        "\"api repos/{owner}/{repo}/compare/main...head1 --jq .files[].filename\") %s;;\n"
+        "esac\n" % (json.dumps(checks), json.dumps(view), head, head, json.dumps(plans),
+                     "echo '{\"message\": \"Not Found\"}'; exit 1" if compare_fails else "printf '%s\\n'" % "\\n".join(changed)))
     (bindir / "gh").chmod(0o755)
 
 
@@ -52,6 +53,12 @@ class MergeGateTest(unittest.TestCase):
 
     def test_passes(self):
         self.assertEqual(self.gate(), (0, ""))
+
+    def test_failed_compare_is_setup_error(self):  # gh prints its error body on stdout; it is not a file list
+        self.assertEqual(self.gate(compare_fails=True)[0], 2)
+
+    def test_compare_at_its_300_file_limit_is_setup_error(self):
+        self.assertEqual(self.gate(changed=tuple(f"src/{i}.py" for i in range(300)))[0], 2)
 
     def test_failing_check_blocks(self):
         code, out = self.gate(checks=GREEN + [{"name": "bad", "state": "FAILURE", "bucket": "fail"}])

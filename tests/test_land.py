@@ -21,7 +21,7 @@ def git(cwd, *args):
 
 
 class LandTest(unittest.TestCase):
-    def land(self, refuse_merge=False, behind=False, owner_label=False, stop=False, silent_merge=False, root_is_wt=False):
+    def land(self, refuse_merge=False, behind=False, owner_label=False, stop=False, silent_merge=False, root_is_wt=False, delete_source=False):
         """Real git repo + bare origin + worktree on branch t/01; fake gh. Returns (code, out, env)."""
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp)
@@ -51,7 +51,8 @@ class LandTest(unittest.TestCase):
             "\"pr merge 7 --merge --match-head-commit abc123\") %s;;\n"
             "\"pr view 7 --json state\") if [ -f %s ]; then echo '{\"state\":\"MERGED\"}'; else echo '{\"state\":\"OPEN\"}'; fi;;\n"
             "esac\n" % (log, "BEHIND" if behind else "CLEAN", json.dumps(GREEN), json.dumps({"baseRefName": "main", "headRefName": "t/01", "headRefOid": "abc123", "labels": [{"name": "agent-flow:owner-judges"}] if owner_label else []}),
-                        "echo refused >&2; exit 1" if refuse_merge else "true" if silent_merge else "touch " + str(merged), merged))
+                        "echo refused >&2; exit 1" if refuse_merge else "true" if silent_merge else "touch " + str(merged)
+                        + (" && git --git-dir=%s update-ref -d refs/heads/t/01" % origin if delete_source else ""), merged))
         (bindir / "gh").chmod(0o755)
         out = io.StringIO()
         env = {"PATH": str(bindir) + os.pathsep + os.environ["PATH"]}
@@ -96,6 +97,15 @@ class LandTest(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertLess(self.log.index("pr update-branch 7"), self.log.index("pr checks 7 --watch"))
         self.assertLess(self.log.index("pr checks 7 --watch"), self.log.index("pr merge 7 --merge --match-head-commit abc123"))
+
+    def test_head_read_before_gate(self):  # a commit pushed after the gate ran must not be merged
+        self.assertEqual(self.land()[0], 0)
+        self.assertLess(self.log.index("pr view 7 --json headRefOid"), self.log.index("pr checks 7 --json name,state,bucket"))
+
+    def test_source_branch_deleted_by_the_merge(self):  # GitHub auto-delete head branches
+        code, out = self.land(delete_source=True)
+        self.assertEqual(code, 0, out)
+        self.assertEqual(self.branches(), ("", ""))
 
     def test_stop_file_blocks_before_update_branch(self):
         code, _ = self.land(behind=True, stop=True)
