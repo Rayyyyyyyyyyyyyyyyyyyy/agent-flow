@@ -149,14 +149,19 @@ def gitlab(root, pr):
     if proj["squash_option"] == "always":
         blocked.append("project requires squash on merge, which drops the reviewed commits "
                        "(Settings > Merge requests > Squash commits when merging: not Require)")
-    pipe = mr["head_pipeline"] or {}
     checks = []
+    # every pipeline of the head sha, not only head_pipeline: a job without `rules:` runs only in the branch pipeline,
+    # while head_pipeline is the MR pipeline, so reading that alone would skip the repo's own tests
     # shortcut: a merged results pipeline runs on the merge ref (another sha), so it reads as no pipeline and the MR
     # stays blocked; check that ref's parents to support it once a Calling repo uses one
-    if pipe.get("sha") == mr["sha"]:  # a pipeline of an older commit says nothing about this one
+    latest = {}  # the newest pipeline per ref; an older one on the same ref is a retry it superseded
+    for p in glab(root, f"projects/:fullpath/pipelines?sha={mr['sha']}", "--paginate"):
+        if p["sha"] == mr["sha"] and p["id"] > latest.get(p["ref"], {"id": -1})["id"]:
+            latest[p["ref"]] = p
+    for ref, pipe in sorted(latest.items()):
         jobs = glab(root, f"projects/:fullpath/pipelines/{pipe['id']}/jobs", "--paginate")
         # the pipeline's own status also covers trigger (bridge) jobs, which the jobs list leaves out
-        checks = [{"name": "pipeline", "bucket": bucket(pipe)}] + [{"name": j["name"], "bucket": bucket(j)} for j in jobs]
+        checks += [{"name": f"pipeline {ref}", "bucket": bucket(pipe)}] + [{"name": j["name"], "bucket": bucket(j)} for j in jobs]
     view = {"baseRefName": mr["target_branch"], "headRefName": mr["source_branch"], "headRefOid": mr["sha"],
             "labels": [{"name": l} for l in mr["labels"]]}
     head = view["headRefName"]

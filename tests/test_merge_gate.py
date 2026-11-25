@@ -278,10 +278,11 @@ def gitlab_api(head="agent-flow/t", labels=(), pipe_sha="head1", pipe_status="su
     """The `glab api` answers for MR 7, by argument string; a value is JSON, raw text, or (stdout, exit code)."""
     q = head.replace("/", "%2F")
     mr = {"target_branch": "main", "source_branch": head, "sha": "head1", "labels": list(labels), "state": "opened",
-          "head_pipeline": {"id": 9, "sha": pipe_sha, "status": pipe_status}, "diverged_commits_count": 0}
+          "diverged_commits_count": 0}
     api = {
         "projects/:fullpath/merge_requests/7": mr,
         "projects/:fullpath": project or {"merge_method": "merge", "squash_option": "default_off"},
+        "projects/:fullpath/pipelines?sha=head1 --paginate": [{"id": 9, "sha": pipe_sha, "status": pipe_status, "ref": head}],
         "projects/:fullpath/pipelines/9/jobs --paginate": jobs,
         f"projects/:fullpath/merge_requests?state=merged&source_branch={q}-plan&target_branch={q} --paginate": list(plans),
         "projects/:fullpath/repository/compare?from=plan1&to=head1": gl_compare(diffs=diffs, timeout=timeout),
@@ -355,6 +356,24 @@ class GitLabGateTest(unittest.TestCase):
     def test_running_pipeline_blocks(self):
         self.assertIn("CI not green: pipeline", self.gate(pipe_status="running")[1])
 
+    def test_every_pipeline_of_the_head_counts(self):
+        # GitLab runs a branch pipeline (jobs without `rules:`) and an MR pipeline for one sha; head_pipeline is only
+        # the MR one, so the repo's own failing test in the branch pipeline must still block
+        pipes = [{"id": 9, "sha": "head1", "status": "success", "ref": "refs/merge-requests/7/head"},
+                 {"id": 8, "sha": "head1", "status": "failed", "ref": "agent-flow/t"}]
+        code, out = self.gate(**{"projects/:fullpath/pipelines?sha=head1 --paginate": pipes,
+                                 "projects/:fullpath/pipelines/8/jobs --paginate": [{"name": "verify", "status": "failed"}]})
+        self.assertEqual(code, 1)
+        self.assertIn("verify", out)
+
+    def test_newer_pipeline_on_a_ref_supersedes_an_older_one(self):  # a retry replaces the failed run
+        pipes = [{"id": 9, "sha": "head1", "status": "success", "ref": "agent-flow/t"},
+                 {"id": 8, "sha": "head1", "status": "failed", "ref": "agent-flow/t"}]
+        self.assertEqual(self.gate(**{"projects/:fullpath/pipelines?sha=head1 --paginate": pipes}), (0, ""))
+
+    def test_unreadable_pipelines_is_setup_error(self):
+        self.assertEqual(self.gate(**{"projects/:fullpath/pipelines?sha=head1 --paginate": NOT_FOUND})[0], 2)
+
     def test_locked_paths_after_plan_block(self):
         for d in ((".gitlab-ci.yml", ".gitlab-ci.yml"), (".agent-flow/verify.py", "src/moved.py")):
             code, out = self.gate(diffs=(d,))
@@ -377,7 +396,8 @@ class GitLabGateTest(unittest.TestCase):
 
     def archive(self, diffs):
         api = gitlab_api(head="agent-flow/t-archive", diffs=diffs)
-        keep = ("projects/:fullpath/merge_requests/7", "projects/:fullpath", "projects/:fullpath/pipelines/9/jobs --paginate",
+        keep = ("projects/:fullpath/merge_requests/7", "projects/:fullpath", "projects/:fullpath/pipelines?sha=head1 --paginate",
+                "projects/:fullpath/pipelines/9/jobs --paginate",
                 "projects/:fullpath/repository/compare?from=main&to=head1")
         return self.gate(head="agent-flow/t-archive", jobs=JOBS[:1], diffs=diffs, **{k: None for k in api if k not in keep})
 

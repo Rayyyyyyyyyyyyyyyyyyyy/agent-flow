@@ -14,7 +14,7 @@ How to check:
 The CI result, the review evidence and this check are all for the current head sha. A merge from the target branch added after the review (by `land.py`) is the only allowed difference; any other commit after them is `FAIL`. The merge itself pins the head (`gh pr merge --match-head-commit <sha>`; on GitLab the merge API with `sha`, which `land.py` calls).
 
 - GitHub: `gh pr view <n> --json headRefOid,statusCheckRollup,comments`
-- GitLab: `glab mr view <n> -F json` (`sha`, `head_pipeline.sha`)
+- GitLab: `glab mr view <n> -F json` (`sha`), and every pipeline of that sha, not only `head_pipeline`: `glab api --hostname <host> projects/<encoded path>/pipelines?sha=<sha>` (a branch pipeline and an MR pipeline can both exist; `head_pipeline` is only the MR one)
 
 ## M2 Up to date with the target
 
@@ -66,7 +66,7 @@ The merge is a merge commit: never squash, never rebase, so the reviewed sha sta
 - the kill switch is set (`.agent-flow/STOP`, `merge: never`).
 
 - GitHub: `gh pr checks <n>`, `gh pr view <n> --json isDraft,labels,reviewDecision`
-- GitLab: `glab mr view <n> -F json` (`draft`, `blocking_discussions_resolved`, `labels`, `head_pipeline.status`), `glab ci status -b <source branch>`
+- GitLab: `glab mr view <n> -F json` (`draft`, `blocking_discussions_resolved`, `labels`), the newest pipeline per ref of the head sha and their jobs (M1), `glab ci status -b <source branch>`
 
 ## M8 After the merge
 
