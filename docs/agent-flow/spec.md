@@ -16,12 +16,12 @@ The Owner can get code written by Claude Code, but not a finished, checked chang
 3. Propose: `/opsx:propose <topic>` writes `openspec/changes/<topic>/`; every Scenario carries a Verify command; open the Plan PR.
 4. Confirm with the Owner; merging the Plan PR is the go-ahead (the agent merges it only with `plan: agent`).
 5. Apply: `/opsx:apply`, task groups in parallel, one worktree each, test-first; one integration branch and one PR per goal.
-6. Review with the chosen review skill, once, reporting cumulative tokens.
-7. Evidence check: CI runs every locked Verify command.
-8. Merge through `merge_gate.py` and `land.py`.
+6. Code review with the chosen code-review skill, once, by a reviewer that is not the implementer: each task in `tasks.md` gets `PASS` or `FAIL` with code-level evidence (`file:line`, the covering test), posted on the integration PR as the review evidence record; cumulative tokens reported.
+7. Test check: CI runs every locked Verify command, the program tests.
+8. Merge through `merge_gate.py` and `land.py`; the gate requires green tests and review evidence passing every task on the current code.
 9. Archive: `/opsx:archive` folds the change into `openspec/specs/`, merged through the gate.
 
-agent-flow itself owns only what no other tool provides: the Boundaries, the Plan PR gate, the locks, the Evidence check rules, `merge_gate.py`/`land.py`, `doctor.py`, and the order of steps.
+agent-flow is an abstract method: it cannot write a Calling repo's acceptance criteria, so it sets only the floor; the OpenSpec change the Owner approves in the Plan PR says what is accepted. agent-flow itself owns only what no other tool provides: the Boundaries, the Plan PR gate, the locks, the test check rules, the review evidence gate, `merge_gate.py`/`land.py`, `doctor.py`, and the order of steps.
 
 ## User Stories
 
@@ -32,8 +32,8 @@ agent-flow itself owns only what no other tool provides: the Boundaries, the Pla
 5. As the Owner, I want to see the proposal, specs, tasks and every Verify command in the Plan PR before anything is built, so that I approve the test, not just the code.
 6. As the Owner, I want Verify commands locked once merged, so that no agent can change the rules to make a gate pass.
 7. As the Owner, I want ready task groups applied in parallel, so that the goal finishes sooner.
-8. As the Owner, I want one review per goal that only judges what a script cannot, so that review costs fewer tokens.
-9. As the Owner, I want CI to re-run every Verify command and the merge gate to refuse missing or weakened evidence, so that a pass means a pass.
+8. As the Owner, I want one code review per goal, by a reviewer that did not write the code, that checks the code against each task and shows its evidence per task, so that done means the code does each task.
+9. As the Owner, I want CI to re-run every Verify command as the program tests, and the merge gate to refuse failing or weakened tests and missing, failed or stale review evidence, so that a pass means a pass.
 10. As the Owner, I want criteria only I can judge kept out of agent merges, so that nothing unjudged lands.
 11. As the Owner, I want each merged change archived into the current specs, so that the repo keeps a record of what it does now.
 12. As the Owner, I want to be asked before anything that affects other people, secrets, money or my own data, and a STOP file or `merge: never` to stop merges.
@@ -44,11 +44,12 @@ agent-flow itself owns only what no other tool provides: the Boundaries, the Pla
 - Repo layout: the repo is the marketplace; the plugin lives in `plugins/agent-flow/`; repo tooling (`scripts/`, `tests/`, CI) stays outside it.
 - Base: skill-workflow `31114d7`, frozen; where the Owner changed the Method, the Owner's decision wins.
 - OpenSpec is fixed for explore, propose, apply and archive; agent-flow runs its commands and reads its files, and leaves installing and `openspec init` to the user (ADR 0003). Other steps use skills chosen per Calling repo, never bundled or declared as dependencies (ADR 0002).
-- Verify commands sit under Scenarios in `openspec/changes/<topic>/specs/`, are fixed in the Plan PR and locked with `.agent-flow/**`, `.github/workflows/**` and `openspec/config.yaml`; `tasks.md` is not locked. The Evidence check is a CI job; `merge_gate.py` refuses: locked paths touched, a Scenario without a Verify command, pipes / `;` / `$?` in a Verify command, the Evidence check job not green, an unapproved Plan PR, an archive PR outside its OpenSpec paths, the `agent-flow:owner-judges` label, the kill switch (ADR 0001).
+- Verify commands sit under Scenarios in `openspec/changes/<topic>/specs/`, are fixed in the Plan PR and locked with `.agent-flow/**`, `.github/workflows/**` and `openspec/config.yaml`; `tasks.md` is not locked. The test check is a CI job (named `evidence-check`); `merge_gate.py` refuses: locked paths touched, a Scenario without a Verify command, pipes / `;` / `$?` in a Verify command, the test check job not green, an unapproved Plan PR, an archive PR outside its OpenSpec paths, the `agent-flow:owner-judges` label, the kill switch (ADR 0001).
+- Review is code review against `tasks.md` (ADR 0005). Its per-task table is posted as a PR comment naming the reviewed commit; `merge_gate.py` refuses an implementation PR when that record is missing, misses a task, has a verdict other than `PASS` or an empty evidence cell, when a task is unticked, or when a commit other than a merge was added after the reviewed one.
 
 ## Testing Decisions
 
-- Unit tests (`python3 -m unittest`) for every script: package checks, discussion checker, doctor checks, verify, merge gate (each refusal), land, rule greps for each finish-line item a script cannot run.
+- Unit tests (`python3 -m unittest`) for every script: package checks, discussion checker, doctor checks, verify, merge gate (each refusal, the review evidence ones included), land (a missing review stops before updating a branch), rule greps for each finish-line item a script cannot run, the code-review step and the floor lines included.
 - CI matrix macOS + Ubuntu, plus the fresh-HOME install job.
 - No end-to-end harness here: the Owner's experiment-repo run is the proof (C10).
 

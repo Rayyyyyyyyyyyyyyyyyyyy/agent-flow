@@ -30,14 +30,16 @@ Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: h
 - A criterion is a line `#### Scenario: <name>` in a spec file.
 - Under it, indented: one or more `Verify: `<command>`` lines, or an `Owner judges: <text>` line. Any other heading ends the criterion.
 - A Verify command must not contain `|`, `;`, `&`, `>`, `<`, `$(`, `$?`, nor be `sh|bash|zsh|dash|fish ... -c ...`. It runs with `shell=False` (`shlex.split`) from the cwd, timeout 900 s; exit 0 is PASS.
-- `tasks.md`: each `## N.` group's first line is `Blocked by: <numbers>` or `Blocked by: none`; its second line is `Size: small`, `Size: medium` or `Size: large`. verify.py does not read it.
+- `tasks.md`: each `## N.` group's first line is `Blocked by: <numbers>` or `Blocked by: none`; its second line is `Size: small`, `Size: medium` or `Size: large`. Tasks are lines `- [ ] <id> <text>` or `- [x] <id> <text>`, `<id>` being dot-separated numbers such as `1.1`; lines without an id are not tasks. verify.py does not read it; merge_gate.py reads the tasks (Review evidence record).
 
 ## verify.py
+
+- The test check: the program tests CI runs. Not the evidence: that is the Review evidence record.
 
 - CLI: `verify.py [--check-only] [<specs dir> ...]`; default dirs: `openspec/changes/*/specs` under the cwd (archived changes are not read); spec files are found recursively. Stdlib only; a Calling repo runs a copy at `.agent-flow/verify.py`.
 - Output lines: `ERROR <file>:<line>: <reason>`, `PASS <file>:<line>: <command>`, `FAIL <file>:<line>: <command> (exit <n>)` plus up to 20 indented output lines, `OWNER <file>:<line>: <scenario>`.
 - Exit 0 all passed (owner-judged Scenarios listed, not run), 1 a failure or a malformed spec, 2 no spec files. `--check-only` validates and runs nothing.
-- CI job `evidence-check` runs only on heads starting `agent-flow/` and not ending `-archive`; with `--check-only` when the base is not the default branch.
+- CI job `evidence-check` (name kept from before ADR 0005 so Calling repos already set up need no change) runs only on heads starting `agent-flow/` and not ending `-archive`; with `--check-only` when the base is not the default branch.
 
 ## merge_gate.py
 
@@ -47,8 +49,16 @@ Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: h
 - Label `agent-flow:owner-judges` blocks.
 - Archive PR (head ends `-archive`): `gh api repos/{owner}/{repo}/compare/<baseRefName>...<headRefOid>` must list only files under `openspec/specs/`, `openspec/changes/<topic>/` or `openspec/changes/archive/YYYY-MM-DD-<topic>/`.
 - Plan PR (head ends `-plan`): blocked unless `.agent-flow/config` has `plan: agent`.
-- Any other PR: a check named `evidence-check` must pass (the reason starts `CI ` so `land.py` treats it as pending); `gh pr list --base <head> --head <head>-plan --state merged --json mergeCommit` must return a Plan PR; `gh api repos/{owner}/{repo}/compare/<plan merge oid>...<headRefOid>` must list no file under `.agent-flow/`, `.github/workflows/`, `openspec/changes/*/specs/`, nor `openspec/config.yaml`, nor one matching a `protect:` glob (`fnmatch`, case-sensitive, against the repo-relative path).
+- Any other PR: a check named `evidence-check` must pass (the reason starts `CI ` so `land.py` treats it as pending); `gh pr list --base <head> --head <head>-plan --state merged --json mergeCommit` must return a Plan PR; `gh api repos/{owner}/{repo}/compare/<plan merge oid>...<headRefOid>` must list no file under `.agent-flow/`, `.github/workflows/`, `openspec/changes/*/specs/`, nor `openspec/config.yaml`, nor one matching a `protect:` glob (`fnmatch`, case-sensitive, against the repo-relative path); and the review evidence below must pass.
+- Review evidence, for the same PRs (topic is the head without `agent-flow/`): reads `gh api repos/{owner}/{repo}/contents/openspec/changes/<topic>/tasks.md?ref=<headRefOid> -H "Accept: application/vnd.github.raw"`, `gh pr view <n> --json comments`, `gh api repos/{owner}/{repo}/compare/<reviewed sha>...<headRefOid>` and `gh api repos/{owner}/{repo}/compare/<baseRefName>...<headRefOid>`. Blocked when: no task line is read; a task is not ticked; no comment carries the marker; the latest record (by `createdAt`) has no row for a task, a verdict other than exactly `PASS`, or an empty evidence cell (several rows for one task must all pass); the reviewed commit is not an ancestor of the head (compare status not `identical` or `ahead`); a commit after it that is not on the base branch has fewer than two parents; the comments or a compare are unreadable. None of these reasons starts `CI`, so `land.py` stops on them before updating a branch.
 - Kill switch, read from `--repo-root` (default cwd): `.agent-flow/STOP` exists, or `.agent-flow/config` has `merge: never`. Config lines are `key: value`, keys case-insensitive; values lower-cased except `protect:`, whose glob keeps its case and may repeat.
+
+## Review evidence record (integration PR)
+
+- A PR comment whose body starts with `<!-- agent-flow:review commit=<sha> -->` (`<sha>`: the full 40-character lowercase sha of the PR head the review read), posted with `gh pr comment <n> --body-file <file>`.
+- Then a Markdown table `| Task | Verdict | Evidence |`: one row `| <id> | PASS or FAIL | <evidence> |` per task id in `tasks.md`. Evidence is `file:line` in the diff and the test that covers it, or why none does. Other lines (header, separator, findings) are ignored.
+- Only the latest record counts. After it, only merge commits may be added (`land.py`'s update from the base branch); any other commit needs a new complete record for the new head.
+- The gate checks that a record exists, covers every task with `PASS` and matches the code; it cannot check who wrote it or whether the review was honest (ADR 0005).
 
 ## .agent-flow/config (Calling repo)
 
@@ -57,7 +67,7 @@ Optional. Keys: `plan: agent` (the agent may land the Plan PR), `merge: never` (
 ## land.py
 
 - CLI: `land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]`; imports `merge_gate.main`, so its BLOCKED lines and exit codes pass through. Exit 0 merged, 1 blocked or failed, 2 setup error.
-- Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, first run the gate and stop on any reason not starting `BLOCKED: CI` (no remote write), then `gh pr update-branch <n>` and `gh pr checks <n> --watch`; run the full gate; `gh pr merge <n> --merge --match-head-commit <headRefOid>`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>`. Any earlier failure prints why and changes nothing.
+- Order: if `gh pr view <n> --json headRefName,mergeStateStatus` says `BEHIND`, first run the gate and stop on any reason not starting `BLOCKED: CI` (no remote write), then `gh pr update-branch <n>` (its merge commit keeps the review evidence valid) and `gh pr checks <n> --watch`; run the full gate; `gh pr merge <n> --merge --match-head-commit <headRefOid>`; only when `gh pr view <n> --json state` is `MERGED`, `git worktree remove <dir>`, `git branch -D <branch>`, `git push origin --delete <branch>`. Any earlier failure prints why and changes nothing.
 
 ## guard.py
 
@@ -70,7 +80,7 @@ Optional. Keys: `plan: agent` (the agent may land the Plan PR), `merge: never` (
 
 ## Work files (Calling repo)
 
-`$(git rev-parse --git-common-dir)/agent-flow/<topic>/`, never committed: `group-N-brief.md`, `group-N-report.md`, `review-package.md`.
+`$(git rev-parse --git-common-dir)/agent-flow/<topic>/`, never committed: `group-N-brief.md`, `group-N-report.md`, `review-package.md`, `review-evidence.md` (the record before it is posted).
 
 ## doctor.py
 

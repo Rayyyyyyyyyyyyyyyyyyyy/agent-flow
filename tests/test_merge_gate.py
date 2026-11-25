@@ -16,11 +16,25 @@ GREEN = [{"name": "verify", "state": "SUCCESS", "bucket": "pass"},
          {"name": "evidence-check", "state": "SUCCESS", "bucket": "pass"},
          {"name": "x", "state": "SKIPPED", "bucket": "skipping"}]
 PLAN = [{"mergeCommit": {"oid": "plan1"}}]
+REVIEWED = "a" * 40
+TASKS = "## 1. Export\nBlocked by: none\nSize: small\n- [x] 1.1 Add the button\n- [x] 1.2 Write the CSV\n"
+TABLE = "| Task | Verdict | Evidence |\n|---|---|---|\n| 1.1 | PASS | src/a.py:3; tests/test_a.py |\n" \
+        "| 1.2 | PASS | src/a.py:9; no test: one-line format call |\n"
 
 
-def fake_gh(bindir, checks, head="agent-flow/t", labels=(), plans=PLAN, changed=("src/a.py",)):
+def review(body=TABLE, sha=REVIEWED, at="2026-11-25T01:00:00Z"):
+    return {"body": f"<!-- agent-flow:review commit={sha} -->\n" + body, "createdAt": at}
+
+
+def compare(status="ahead", commits=()):
+    return {"status": status, "commits": [{"sha": c, "parents": [{"sha": "p"}] * n} for c, n in commits]}
+
+
+def fake_gh(bindir, checks, head="agent-flow/t", labels=(), plans=PLAN, changed=("src/a.py",), tasks=TASKS,
+            comments=(review(),), since=compare("identical"), own=compare(commits=[(REVIEWED, 1)])):
     view = {"baseRefName": "main", "headRefName": head, "headRefOid": "head1",
             "labels": [{"name": l} for l in labels]}
+    topic = head.removeprefix("agent-flow/")
     (bindir / "gh").write_text(
         "#!/bin/sh\ncase \"$*\" in\n"
         "\"pr checks 7 --json name,state,bucket\") echo '%s';;\n"
@@ -28,7 +42,13 @@ def fake_gh(bindir, checks, head="agent-flow/t", labels=(), plans=PLAN, changed=
         "\"pr list --base %s --head %s-plan --state merged --json mergeCommit\") echo '%s';;\n"
         "\"api repos/{owner}/{repo}/compare/plan1...head1 --jq .files[].filename\"|"
         "\"api repos/{owner}/{repo}/compare/main...head1 --jq .files[].filename\") printf '%s\\n';;\n"
-        "esac\n" % (json.dumps(checks), json.dumps(view), head, head, json.dumps(plans), "\\n".join(changed)))
+        "\"api repos/{owner}/{repo}/contents/openspec/changes/%s/tasks.md?ref=head1 -H Accept: application/vnd.github.raw\") "
+        "printf '%%s' '%s';;\n"
+        "\"pr view 7 --json comments\") printf '%%s' '%s';;\n"
+        "\"api repos/{owner}/{repo}/compare/%s...head1\") printf '%%s' '%s';;\n"
+        "\"api repos/{owner}/{repo}/compare/main...head1\") printf '%%s' '%s';;\n"
+        "esac\n" % (json.dumps(checks), json.dumps(view), head, head, json.dumps(plans), "\\n".join(changed),
+                    topic, tasks, json.dumps({"comments": list(comments)}), REVIEWED, json.dumps(since), json.dumps(own)))
     (bindir / "gh").chmod(0o755)
 
 
@@ -130,6 +150,70 @@ class MergeGateTest(unittest.TestCase):
 
     def test_other_config_passes(self):
         self.assertEqual(self.gate(config="merge: auto\n")[0], 0)
+
+    def test_no_review_evidence_blocks(self):
+        for comments in ((), ({"body": "LGTM", "createdAt": "x"},), (review(sha="abc"),)):
+            code, out = self.gate(comments=comments)
+            self.assertEqual(code, 1, comments)
+            self.assertIn("BLOCKED: no review evidence:", out)
+
+    def test_latest_review_counts(self):
+        fail = review(TABLE.replace("| 1.2 | PASS", "| 1.2 | FAIL"), at="2026-11-25T02:00:00Z")
+        self.assertEqual(self.gate(comments=(fail, review()))[0], 1)
+        self.assertEqual(self.gate(comments=(review(), fail))[0], 1)
+        self.assertEqual(self.gate(comments=(fail, review(at="2026-11-25T03:00:00Z")))[0], 0)
+
+    def test_task_missing_from_review_blocks(self):
+        code, out = self.gate(tasks=TASKS + "- [x] 2.1 Document it\n")
+        self.assertEqual(code, 1)
+        self.assertIn("review evidence has no row for task 2.1", out)
+
+    def test_failed_or_unclear_verdict_blocks(self):
+        for verdict in ("FAIL", "pass", "PASS?", ""):
+            code, out = self.gate(comments=(review(TABLE.replace("| 1.2 | PASS", f"| 1.2 | {verdict}")),))
+            self.assertEqual(code, 1, verdict)
+            self.assertIn("review evidence is not PASS for task 1.2", out)
+
+    def test_task_without_evidence_blocks(self):
+        code, out = self.gate(comments=(review(TABLE.replace("src/a.py:9; no test: one-line format call", " ")),))
+        self.assertEqual(code, 1)
+        self.assertIn("review evidence gives no evidence for task 1.2", out)
+
+    def test_unticked_task_blocks(self):
+        code, out = self.gate(tasks=TASKS.replace("[x] 1.2", "[ ] 1.2"))
+        self.assertEqual(code, 1)
+        self.assertIn("tasks not ticked in openspec/changes/t/tasks.md: 1.2", out)
+
+    def test_unreadable_tasks_blocks(self):
+        code, out = self.gate(tasks='{"message": "Not Found"}')
+        self.assertEqual(code, 1)
+        self.assertIn("no task lines read from openspec/changes/t/tasks.md", out)
+
+    def test_commit_after_review_blocks(self):
+        code, out = self.gate(since=compare(commits=[("c" * 40, 1)]), own=compare(commits=[(REVIEWED, 1), ("c" * 40, 1)]))
+        self.assertEqual(code, 1)
+        self.assertIn("review evidence is stale: commits added after the review: cccccccccccc", out)
+
+    def test_review_not_in_head_history_blocks(self):
+        code, out = self.gate(since=compare("diverged"))
+        self.assertEqual(code, 1)
+        self.assertIn("is not in the PR head's history", out)
+
+    def test_merge_from_base_after_review_passes(self):
+        # land.py's update-branch: a merge commit plus the base commits it brings, which are not the PR's own
+        since = compare(commits=[("b" * 40, 1), ("m" * 40, 2)])
+        own = compare(commits=[(REVIEWED, 1), ("m" * 40, 2)])
+        self.assertEqual(self.gate(since=since, own=own), (0, ""))
+
+    def test_unreadable_compare_blocks(self):
+        code, out = self.gate(own={"message": "Not Found"})
+        self.assertEqual(code, 1)
+        self.assertIn("could not compare the reviewed commit", out)
+
+    def test_unreadable_comments_blocks(self):
+        code, out = self.gate(comments=({"createdAt": "x"},))
+        self.assertEqual(code, 1)
+        self.assertIn("could not read the PR comments", out)
 
     def test_reasons_one_per_line(self):
         code, out = self.gate(plans=[], stop=True)

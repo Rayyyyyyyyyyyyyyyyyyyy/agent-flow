@@ -14,6 +14,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "plugins/agent-flow
 import land
 
 GREEN = [{"name": "verify", "state": "SUCCESS", "bucket": "pass"}, {"name": "evidence-check", "state": "SUCCESS", "bucket": "pass"}]
+REVIEWED = "a" * 40
+REVIEW = {"comments": [{"body": f"<!-- agent-flow:review commit={REVIEWED} -->\n| Task | Verdict | Evidence |\n"
+                                "|---|---|---|\n| 1.1 | PASS | src/a.py:1 |", "createdAt": "2026-11-25T01:00:00Z"}]}
 
 
 def git(cwd, *args):
@@ -21,7 +24,8 @@ def git(cwd, *args):
 
 
 class LandTest(unittest.TestCase):
-    def land(self, refuse_merge=False, behind=False, owner_label=False, stop=False, silent_merge=False, root_is_wt=False):
+    def land(self, refuse_merge=False, behind=False, owner_label=False, stop=False, silent_merge=False, root_is_wt=False,
+             reviewed=True):
         """Real git repo + bare origin + worktree on branch t/01; fake gh. Returns (code, out, env)."""
         tmp = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmp)
@@ -48,9 +52,15 @@ class LandTest(unittest.TestCase):
             "\"pr list --base t/01 --head t/01-plan --state merged --json mergeCommit\") echo '[{\"mergeCommit\":{\"oid\":\"p1\"}}]';;\n"
             "\"api repos/{owner}/{repo}/compare/p1...abc123 --jq .files[].filename\") echo src/a.py;;\n"
             "\"pr view 7 --json headRefOid\") echo '{\"headRefOid\":\"abc123\"}';;\n"
+            "\"api repos/{owner}/{repo}/contents/openspec/changes/t/01/tasks.md?ref=abc123 -H Accept: application/vnd.github.raw\") "
+            "echo '- [x] 1.1 do it';;\n"
+            "\"pr view 7 --json comments\") printf '%%s' '%s';;\n"
+            "\"api repos/{owner}/{repo}/compare/%s...abc123\") echo '{\"status\":\"ahead\",\"commits\":[]}';;\n"
+            "\"api repos/{owner}/{repo}/compare/main...abc123\") echo '{\"status\":\"ahead\",\"commits\":[]}';;\n"
             "\"pr merge 7 --merge --match-head-commit abc123\") %s;;\n"
             "\"pr view 7 --json state\") if [ -f %s ]; then echo '{\"state\":\"MERGED\"}'; else echo '{\"state\":\"OPEN\"}'; fi;;\n"
             "esac\n" % (log, "BEHIND" if behind else "CLEAN", json.dumps(GREEN), json.dumps({"baseRefName": "main", "headRefName": "t/01", "headRefOid": "abc123", "labels": [{"name": "agent-flow:owner-judges"}] if owner_label else []}),
+                        json.dumps(REVIEW if reviewed else {"comments": []}), REVIEWED,
                         "echo refused >&2; exit 1" if refuse_merge else "true" if silent_merge else "touch " + str(merged), merged))
         (bindir / "gh").chmod(0o755)
         out = io.StringIO()
@@ -100,6 +110,13 @@ class LandTest(unittest.TestCase):
     def test_stop_file_blocks_before_update_branch(self):
         code, _ = self.land(behind=True, stop=True)
         self.assertEqual(code, 1)
+        self.assertNotIn("update-branch", self.log)
+        self.assertNotIn("pr merge", self.log)
+
+    def test_missing_review_blocks_before_update_branch(self):
+        code, out = self.land(behind=True, reviewed=False)
+        self.assertEqual(code, 1)
+        self.assertIn("BLOCKED: no review evidence", out)
         self.assertNotIn("update-branch", self.log)
         self.assertNotIn("pr merge", self.log)
 
