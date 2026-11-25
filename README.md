@@ -11,10 +11,10 @@ Status: pre-release. The version is in `plugins/agent-flow/.claude-plugin/plugin
 ## Requirements
 
 - Claude Code
-- `git`, and the GitHub CLI `gh`, logged in (`gh auth login`)
+- `git`, and the GitHub CLI `gh` logged in (`gh auth login`), or for a GitLab origin the GitLab CLI `glab` logged in (`glab auth login --hostname <host>`)
 - Python 3.11+ (stdlib only, nothing to install)
 - OpenSpec (`npm install -g @fission-ai/openspec@latest`, Node 20.19+), and `openspec init` run once in each Calling repo
-- A Calling repo with an `origin` on GitHub that you can push to
+- A Calling repo with an `origin` on GitHub or GitLab that you can push to; on GitLab the project's merge method must be Merge commit and squash must not be required (set `forge: gitlab` in `.agent-flow/config` when the host name does not contain `gitlab`)
 
 The skill runs `doctor.py` first and prints the fix for anything missing; installing OpenSpec and `openspec init` are left to you. It warns when the token lacks the `workflow` scope (`gh auth refresh -s workflow`) or when a private repo on a free plan has no branch protection.
 
@@ -86,7 +86,7 @@ OpenSpec runs explore, propose, apply and archive (see `docs/adr/0003`). For res
 ## Safety
 
 - **Plan PR**: you merge it yourself, which is your approval of every `Verify:` command before anything is built. Put `plan: agent` in `.agent-flow/config` to let the agent merge it.
-- **Locks**: after the Plan PR merges, `.agent-flow/**`, `.github/workflows/**`, `openspec/config.yaml` and `openspec/changes/<topic>/specs/**` change only through a new Plan PR. The gate refuses any other PR that touches them; the archive PR may change only its change's OpenSpec paths. Add `protect: <glob>` lines to `.agent-flow/config` to lock more, such as lint or test config.
+- **Locks**: after the Plan PR merges, `.agent-flow/**`, `.github/workflows/**`, `.gitlab-ci.yml`, `openspec/config.yaml` and `openspec/changes/<topic>/specs/**` change only through a new Plan PR. The gate refuses any other PR that touches them; the archive PR may change only its change's OpenSpec paths. Add `protect: <glob>` lines to `.agent-flow/config` to lock more, such as lint or test config.
 - **Guard hook**: the plugin's `guard.py` runs before every edit and shell command in a repo that has `.agent-flow/`. On `agent-flow/*` branches it refuses writes to locked paths when they happen, not only at merge; on any branch it asks you before force pushes, `reset --hard`, `clean -f`, recursive `rm` and other commands that can delete work. In repos without `.agent-flow/` it does nothing.
 - **Review evidence**: the gate refuses an implementation PR unless the latest review table covers every task in `tasks.md` with `PASS` and evidence, every task is ticked, and nothing but merges was pushed after the reviewed commit. It catches a skipped or stale review, not a dishonest one (`docs/adr/0005`).
 - **Owner-judged criteria**: a PR labelled `agent-flow:owner-judges` is never merged by the agent.
@@ -100,8 +100,8 @@ Running the skill in a repo is your consent to branch, commit, push, open PRs, s
 ```text
 .agent-flow/skills.md         step-to-skill map
 .agent-flow/verify.py         copy of the test check script, run by CI
-.agent-flow/config            optional: plan: agent, merge: never, apply: parallel, protect: <glob>
-.github/workflows/...         the evidence-check job (the program tests)
+.agent-flow/config            optional: plan: agent, merge: never, apply: parallel, protect: <glob>, forge: gitlab
+.github/workflows/...         the evidence-check job (the program tests; .gitlab-ci.yml on GitLab)
 docs/<topic>/discussion.md    your words, finish line, decisions, open questions
 docs/<topic>/foundation.md    sourced facts
 openspec/changes/<topic>/     the OpenSpec change (proposal, design, specs, tasks)

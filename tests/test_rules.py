@@ -164,7 +164,7 @@ class Method(unittest.TestCase):
 class Locks(unittest.TestCase):  # C19, C22
     def test_locked_paths_and_owner_label(self):
         locks = SKILL[SKILL.index("## Locks"):SKILL.index("## Resume rule")]
-        for t in ["`.agent-flow/**`", "`.github/workflows/**`", "`openspec/config.yaml`",
+        for t in ["`.agent-flow/**`", "`.github/workflows/**`", "`.gitlab-ci.yml`", "`openspec/config.yaml`",
                   "`openspec/changes/<topic>/specs/**`", "`tasks.md` is not locked", "stop and ask the user",
                   "`agent-flow:owner-judges`"]:
             self.assertIn(t, locks)
@@ -196,8 +196,21 @@ class Reporting(unittest.TestCase):  # C14
             self.assertIn(t, rep)
 
 
-if __name__ == "__main__":
-    unittest.main()
+class GitLab(unittest.TestCase):  # C27
+    def test_forge_and_glab(self):
+        for t in ["a PR is a merge request (MR) and `glab` replaces `gh`", "`forge: gitlab`", "Give every `glab mr` and `glab ci` command `-R <origin URL>`",
+                  "`--hostname <origin host>`", "pick the forge themselves"]:
+            self.assertIn(t, WORKFLOW)
+        self.assertIn("`.gitlab-ci.yml` when origin is on GitLab", step(3))
+        self.assertIn("on GitLab it stops instead", step(8))
+        self.assertIn("`glab mr list -R <origin URL> --all --source-branch <branch>`", SKILL)
+
+    def test_gitlab_ci_job_and_record(self):
+        for t in ["evidence-check:\n  image:", "- if: $CI_COMMIT_REF_NAME =~ /^agent-flow\\//", "before_script: []",
+                  'python3 .agent-flow/verify.py --head "$CI_COMMIT_REF_NAME"', "`include: local`",
+                  "merge_requests/<n>/notes -F body=@<file>", "the latest such MR note",
+                  "Pipelines must succeed", "merge the target branch into the MR's branch with a merge commit"]:
+            self.assertIn(t, WORKFLOW)
 
 
 class MergeCheck(unittest.TestCase):  # C26
@@ -210,7 +223,9 @@ class MergeCheck(unittest.TestCase):  # C26
     def test_how_to_check(self):
         for s in ["is `FAIL`, never `PASS`", "another agent's word is not evidence", "`.agent-flow/merge-rules.md`",
                   "may add rules, never remove or loosen one", "`gh pr merge --match-head-commit <sha>`",
-                  "`glab mr merge --sha <sha>`", "`gh pr diff <n>", "`glab mr diff <n>`", "administrators cannot bypass it"]:
+                  "the merge API with `sha`", "`gh pr diff <n>", "`glab mr diff <n>", "administrators cannot bypass it",
+                  "add `-R <origin URL>` to every `glab mr` and `glab ci` command", "follow an `upstream` remote",
+                  "`merge_method` is `merge`, `squash_option` is not `always`", "`land.py` stops on a behind MR"]:
             self.assertIn(s, MERGE_RULES)
 
     def test_step_8(self):
@@ -220,3 +235,7 @@ class MergeCheck(unittest.TestCase):  # C26
         self.assertIn("after the merge check", step(9))
         for s in ["never the implementer or the reviewer", "`merge-check.md`", "if the head moved, check again"]:
             self.assertIn(s, WORKFLOW)
+
+
+if __name__ == "__main__":
+    unittest.main()

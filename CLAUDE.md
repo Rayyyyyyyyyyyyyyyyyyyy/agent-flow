@@ -35,12 +35,12 @@ The skill (`skills/agent-flow/SKILL.md`, steps 0-9) runs in a Calling repo: Open
 1. `doctor.py`: preflight the skill runs first, including that `openspec list --json` works.
 2. `verify.py`: the test check (the program tests CI runs). Parses each `#### Scenario:` in `openspec/changes/<topic>/specs/**/spec.md` and runs its `Verify:` commands (`shell=False`, exit code decides). The skill copies it to the Calling repo's `.agent-flow/verify.py` for its `evidence-check` CI job; stdlib only.
 3. `merge_gate.py`: CI green; Plan PR (`agent-flow/<topic>-plan`) only with `plan: agent`; archive PR (`agent-flow/<topic>-archive`) only inside its change's OpenSpec paths; other PRs need a passing `evidence-check` (the test check job; name kept), a merged Plan PR, no locked-path or `protect:` change since it, and a review evidence record (PR comment) giving every task in `openspec/changes/<topic>/tasks.md` `PASS` on the current code; no `agent-flow:owner-judges` label; no kill switch.
-4. `land.py`: imports `merge_gate.main`, updates a BEHIND branch, merges with a merge commit (`--match-head-commit`), cleans up only after `MERGED`.
+4. `land.py`: imports `merge_gate.main`, reads the head commit before the gate, updates a BEHIND branch (GitHub; on GitLab it stops), merges that commit with a merge commit (`--match-head-commit`, or the GitLab merge API with `sha` and squash off), cleans up only after the PR or MR reads as merged.
 5. `guard.py`: the plugin's PreToolUse hook (`hooks/hooks.json`), active only in a repo with `.agent-flow/`: denies edits and shell writes to locked or `protect:` paths on `agent-flow/*` branches except `-plan`, asks before commands that can delete work, fails closed on unreadable input (ADR 0004).
 
-Interfaces between them: `docs/agent-flow/contracts.md`.
+The forge is GitHub (`gh`) or GitLab (`glab`), picked by `merge_gate.forge` from `.agent-flow/config` or origin's host; every forge read fails closed. Interfaces between them: `docs/agent-flow/contracts.md`.
 
-Tests import plugin scripts by inserting `plugins/agent-flow/scripts` into `sys.path` (no `tests/__init__.py`), or run them via `subprocess` with `sys.executable`.
+Tests import plugin scripts by inserting `plugins/agent-flow/scripts` into `sys.path` (no `tests/__init__.py`), or run them via `subprocess` with `sys.executable`. Fake `gh` and `glab` executables stand in for the forges; never call a real GitLab or GitHub API from a test. The fake `glab` helpers (`GLAB_HEADER`, `gitlab_api`, `fake_glab`) live in `tests/test_merge_gate.py`; `test_land.py` and `test_doctor.py` import them after inserting `tests/` too.
 
 ## Constraints on shipped files
 
@@ -48,6 +48,7 @@ Tests import plugin scripts by inserting `plugins/agent-flow/scripts` into `sys.
 
 ## Working rules from past decisions
 
+- agent-flow is an abstract method tool: a change belongs here only if it is part of what the plugin owns and holds for every Calling repo; one environment's situation is met by that repo's config (`protect:`), rules and CI. GitLab support is gate and land correctness or parity with GitHub, never a check tuned to one host, and every forge read fails closed. Tests never call a real GitLab or GitHub instance.
 - Verification methods that create external resources, run real model calls, or spend the user's usage (E2E runs, fixture repos, canaries) need the user's explicit yes first. A fabricated fixture-repo E2E was rejected and reverted for this reason.
 - `version` in `plugin.json` is raised only to release, in its own PR: merging it to `main` publishes `v<version>`. Installed users stay on the last version until then (Claude Code updates only when the version string changes).
 - Check `## Open questions` in `discussion.md` before starting work; several items there are explicitly "ask the user".

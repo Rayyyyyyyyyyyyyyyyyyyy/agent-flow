@@ -3,7 +3,9 @@
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
+import merge_gate
 
 
 def run(*cmd):
@@ -14,14 +16,7 @@ def run(*cmd):
     return r.returncode, (r.stdout + r.stderr).strip()
 
 
-def main():
-    problems = []  # (level, what, fix)
-
-    def add(level, what, fix):
-        problems.append((level, what, fix))
-
-    if not shutil.which("git"):
-        add("FAIL", "git not installed", "install git (macOS: xcode-select --install)")
+def check_github(add):
     have_gh = shutil.which("gh")
     if not have_gh:
         add("FAIL", "gh not installed", "install the GitHub CLI: https://cli.github.com")
@@ -42,6 +37,56 @@ def main():
             add("WARN", "branch protection unavailable (private repo on a free plan): merge gate script is the only guard", "make the repo public or upgrade the plan")
         if url.startswith("https://") and "workflow" not in auth:
             add("WARN", "token lacks the workflow scope (HTTPS remote cannot push .github/workflows)", "gh auth refresh -s workflow")
+
+
+def check_gitlab(add):
+    if not shutil.which("glab"):
+        add("FAIL", "glab not installed", "install the GitLab CLI: https://gitlab.com/gitlab-org/cli")
+        return
+    try:
+        host = merge_gate.origin(".")[0]
+    except ValueError:
+        add("FAIL", "origin remote missing or not a GitLab project URL", "git remote add origin <url of your GitLab project>")
+        return
+    if run("glab", "auth", "status", "--hostname", host)[0] != 0:
+        add("FAIL", f"glab not logged in to {host}", f"glab auth login --hostname {host}")
+        return
+    try:
+        proj = merge_gate.glab(".", "projects/:fullpath")
+        perms = proj.get("permissions") or {}
+        level = max((perms.get(k) or {}).get("access_level", 0) for k in ("project_access", "group_access"))
+        me = merge_gate.glab(".", "user")["id"]
+    except (ValueError, AttributeError, KeyError, TypeError):
+        add("FAIL", "glab cannot read the origin project", "check `glab api projects/:fullpath` in the repo root")
+        return
+    try:  # `permissions` omits roles inherited from a parent group; members/all includes them
+        level = max(level, merge_gate.glab(".", f"projects/:fullpath/members/all/{me}")["access_level"])
+    except (ValueError, KeyError, TypeError):
+        pass
+    if level < 30:  # 30 = Developer, the lowest role that can push
+        add("FAIL", "push access to origin missing", "ask the project owner for the Developer role or higher")
+    if proj.get("merge_method") != "merge":
+        add("FAIL", f"merge method is {proj.get('merge_method')}, not merge commit (land.py needs merge commits)",
+            "Settings > Merge requests > Merge method: Merge commit")
+    if proj.get("squash_option") == "always":
+        add("FAIL", "project requires squash on merge (land.py needs the reviewed commits kept)",
+            "Settings > Merge requests > Squash commits when merging: anything but Require")
+
+
+def main():
+    problems = []  # (level, what, fix)
+
+    def add(level, what, fix):
+        problems.append((level, what, fix))
+
+    if not shutil.which("git"):
+        add("FAIL", "git not installed", "install git (macOS: xcode-select --install)")
+    try:
+        on_gitlab = merge_gate.forge(Path(".")) == "gitlab"
+    except ValueError as e:
+        add("FAIL", str(e), "set `forge: github` or `forge: gitlab` in .agent-flow/config, or remove the line")
+    else:
+        check_gitlab(add) if on_gitlab else check_github(add)
     if not shutil.which("openspec"):
         add("FAIL", "openspec not installed", "npm install -g @fission-ai/openspec@latest")
     elif run("openspec", "list", "--json")[0] != 0:

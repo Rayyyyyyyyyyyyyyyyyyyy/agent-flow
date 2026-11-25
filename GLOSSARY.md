@@ -24,6 +24,14 @@ _Avoid_: target repo, project repo, user repo
 The author of agent-flow and its first user.
 _Avoid_: maintainer (when meaning the user the tool is for)
 
+**Forge**:
+The host of the Calling repo's `origin`: GitHub (through `gh`) or GitLab (through `glab`). `merge_gate.py`, `land.py` and `doctor.py` pick it themselves; the Method is the same on both.
+_Avoid_: provider, platform
+
+**Merge request (MR)**:
+GitLab's name for a pull request. Everything said of a PR (Plan PR, integration PR, archive PR, a PR comment) holds for an MR (an MR note).
+_Avoid_: using MR where the text means both forges; say PR
+
 ## Running a goal
 
 **Environment alignment**:

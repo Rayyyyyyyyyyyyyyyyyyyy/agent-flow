@@ -6,6 +6,8 @@ What the Method leaves open you decide yourself and keep going: record each such
 
 Commit after each step. Commit and push to working branches without asking. Every change reaches the default branch through a PR.
 
+GitLab: when origin's host contains `gitlab` (or `.agent-flow/config` has `forge: gitlab`), a PR is a merge request (MR) and `glab` replaces `gh`: `glab mr create --source-branch <head> --target-branch <base> --title ... --description-file <file> --yes`, `glab mr update <n> --label agent-flow:owner-judges`, `glab mr list --all --source-branch <branch>`. Give every `glab mr` and `glab ci` command `-R <origin URL>` (from `git remote get-url origin`), and every `glab api` call `--hostname <origin host>` and the path `projects/<origin project path, URL-encoded>/...`: glab's own default and its `:id`/`:fullpath` placeholders follow an `upstream` remote when one exists. The CI job goes in `.gitlab-ci.yml` (step 3). `merge_gate.py`, `land.py` and `doctor.py` pick the forge themselves.
+
 ## Running OpenSpec
 
 - Run `/opsx:explore`, `/opsx:propose`, `/opsx:apply` and `/opsx:archive` as the user would. If the session lists them as skills or commands, invoke them; otherwise find their files under the repo's `.claude/` or the user's `~/.claude/` and follow them as written.
@@ -65,9 +67,9 @@ Then write the repo's own rules and verify. They can only be written after readi
 
 - Verify commands: what proves a change works here (tests, build, lint, type check). Prefer what the repo already runs. Note what they do not cover.
 - End-to-end tests: only when the repo needs them; many do not. A method that spends usage or creates external resources is asked in step 4, with its cost.
-- Checks over prose: a rule that can be checked is written as a check, not as a line in `CLAUDE.md`. A mistake seen twice (a repeated review finding, guess or failure in this repo's records) becomes a lint rule, a test or a Verify command whose failure message says how to fix it. Config that makes such checks pass or fail (lint, formatter, type checker, test runner config) is locked with `protect: <glob>` lines in `.agent-flow/config`, one glob per line, matched against repo-relative paths.
+- Checks over prose: a rule that can be checked is written as a check, not as a line in `CLAUDE.md`. A mistake seen twice (a repeated review finding, guess or failure in this repo's records) becomes a lint rule, a test or a Verify command whose failure message says how to fix it. Config that makes such checks pass or fail (lint, formatter, type checker, test runner config) is locked with `protect: <glob>` lines in `.agent-flow/config`, one glob per line, matched against repo-relative paths. So is every local file the CI job runs through outside the locked CI paths: a local action (`uses: ./...`) a workflow calls; on GitLab a file `.gitlab-ci.yml` pulls in with `include: local`, and the project's custom CI config path if it sets one.
 - Merge conditions: `merge_gate.py` always requires CI green, the test check, review evidence for every task, a merged Plan PR, no locked-path change after it and no kill switch. The repo may add conditions; it may not remove one.
-- Where: lasting rules go in the repo's `CLAUDE.md` or `AGENTS.md`; rules for this goal only go in `docs/<topic>/`. Record what you wrote under Decisions. If the default branch has no rule requiring a PR and green CI, set it when the plan allows (`gh api` branch protection, requiring `evidence-check`); if not allowed, say so in Decisions, and `merge_gate.py` is the guard.
+- Where: lasting rules go in the repo's `CLAUDE.md` or `AGENTS.md`; rules for this goal only go in `docs/<topic>/`. Record what you wrote under Decisions. If the default branch has no rule requiring a PR and green CI, set it when the plan allows: on GitHub `gh api` branch protection requiring `evidence-check`; on GitLab a protected default branch that allows pushes from No one, and the project's Pipelines must succeed (`glab api` `protected_branches`, `only_allow_merge_if_pipeline_succeeds`); if not allowed, say so in Decisions, and `merge_gate.py` is the guard.
 
 Missing infrastructure that blocks evidence (raw data or logs, version and commit mapping, a reproducible environment) becomes the first task groups. Using secrets, money or the user's own data, a need for accounts you do not have, and browser use go to the user first (Boundaries, Ask first).
 
@@ -101,19 +103,33 @@ Once per change, start a fresh subagent (`model: sonnet`) with only `openspec/ch
 
 Run `python3 .agent-flow/verify.py openspec/changes/<topic>/specs` on the unimplemented tree. Commands meant to fail must fail for the stated reason; each must finish by itself, leaving no server or process running.
 
-Copy `${CLAUDE_PLUGIN_ROOT}/scripts/verify.py` to `.agent-flow/verify.py` when it is missing or differs. Add this job to the repo's CI workflow (create `.github/workflows/ci.yml` if none runs on pull requests), with the repo's own setup steps so its Verify commands can run:
+Copy `${CLAUDE_PLUGIN_ROOT}/scripts/verify.py` to `.agent-flow/verify.py` when it is missing or differs. Add this job to the repo's CI workflow, replacing an `evidence-check` job that differs from it (create `.github/workflows/ci.yml` if none runs on pull requests), with the repo's own setup steps so its Verify commands can run:
 
 ```yaml
   evidence-check:
-    if: ${{ startsWith(github.head_ref, 'agent-flow/') && !endsWith(github.head_ref, '-archive') }}
+    if: ${{ startsWith(github.head_ref, 'agent-flow/') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       # the repo's setup steps (runtime, dependency install) go here
-      - run: python3 .agent-flow/verify.py ${{ github.base_ref != github.event.repository.default_branch && '--check-only' || '' }}
+      - run: python3 .agent-flow/verify.py --head "$REF"
+        env:
+          REF: ${{ github.head_ref }}
 ```
 
-The Plan PR (into the integration branch) only validates the specs; the integration PR (into the default branch) runs every Verify command. The job is skipped on the archive PR and on PRs that are not agent-flow's. CI runs only verify commands: no deploy, no secrets.
+On GitLab, add this job to `.gitlab-ci.yml` instead (create it if missing), replacing an `evidence-check` job that differs, with an image that has `python3` and the repo's runtime (the repo's own build image usually does). Keep its own `before_script` (the repo's setup, or `[]`) so it never inherits one from `default:`:
+
+```yaml
+evidence-check:
+  image: python:3.12
+  rules:
+    - if: $CI_COMMIT_REF_NAME =~ /^agent-flow\//
+  before_script: []
+  script:
+    - python3 .agent-flow/verify.py --head "$CI_COMMIT_REF_NAME"
+```
+
+`--head` picks the specs from the branch name (contracts: `verify.py`). The job reads only this change's specs, so other OpenSpec changes in the repo, written without Verify lines, do not fail it. The Plan PR only validates the specs; the integration PR runs every Verify command; the archive PR validates the archived copy, which gives it a passing check even when the repo's own CI runs only on the default branch. The job is skipped on PRs that are not agent-flow's. CI runs only verify commands: no deploy, no secrets.
 
 Branches: push `agent-flow/<topic>` from the default branch, then `agent-flow/<topic>-plan` carrying `discussion.md`, `foundation.md`, `openspec/changes/<topic>/`, `.agent-flow/` (skills map, `verify.py`, config if any), CI changes and repo rules. Open the Plan PR into `agent-flow/<topic>`.
 
@@ -147,7 +163,7 @@ Deterministic checks first: every Verify command passes locally and CI is green.
 
 For every task in `tasks.md` (ids as OpenSpec writes them, `- [x] 1.1 ...`) the reviewer finds the code that does it and gives a verdict: `PASS` only with code-level evidence, `file:line` in the diff and the test that covers it, or why no test does; otherwise `FAIL` with what is missing. A ticked box is not evidence. Beyond the tasks it answers: does each Verify command really test its Scenario; does the diff stay inside the proposal's scope and out of its non-goals; does the diff add a workaround, or a comment that explains one away instead of fixing it? Each of those is a finding. Workarounds that were in the repo before this goal are listed under Open questions, not fixed here.
 
-Write the table to `review-evidence.md` in the work directory and post it on the integration PR as the review evidence record with `gh pr comment <n> --body-file <file>`. Its first line names the head the review read, full sha; findings may follow the table:
+Write the table to `review-evidence.md` in the work directory and post it on the integration PR as the review evidence record with `gh pr comment <n> --body-file <file>` (GitLab: an MR note, `glab api --hostname <host> projects/<project>/merge_requests/<n>/notes -F body=@<file>`). Its first line names the head the review read, full sha; findings may follow the table:
 
 ```markdown
 <!-- agent-flow:review commit=<full sha of the reviewed head> -->
@@ -157,7 +173,7 @@ Write the table to `review-evidence.md` in the work directory and post it on the
 | 1.2 | FAIL | src/button.tsx:8 adds the button; no test covers the disabled state |
 ```
 
-`merge_gate.py` reads the latest such comment and refuses the PR unless every task in `tasks.md` is ticked and has a `PASS` row with evidence, and every commit added after the reviewed one is a merge (such as `land.py` updating the branch from the default branch). The gate checks that a review happened on this code, not that it was honest: never post a record for a review that did not happen, and never change a verdict without the reviewer.
+`merge_gate.py` reads the latest such comment (on GitLab, the latest such MR note) and refuses the PR unless every task in `tasks.md` is ticked and has a `PASS` row with evidence, and every commit added after the reviewed one is a merge (such as `land.py` updating the branch from the default branch). The gate checks that a review happened on this code, not that it was honest: never post a record for a review that did not happen, and never change a verdict without the reviewer.
 
 One round. Findings and `FAIL` rows go through the fix loop (step 5); the re-review gets only the open findings and a package of the fix diff (from the head the review saw), and posts a new complete table for the new head: it re-judges the tasks the fix diff touches or that were `FAIL`, and carries the other rows over. A finding of a kind this repo's records already show becomes a check (step 2), proposed in a new Plan PR. Record the review's cumulative tokens for the report.
 
@@ -169,7 +185,7 @@ The program tests: the `evidence-check` CI job on the integration PR runs every 
 
 Every PR this Method merges (Plan PR with `plan: agent`, integration PR, archive PR) gets the merge check first. Dispatch it as its own subagent on `sonnet`, never the implementer or the reviewer, with only: the PR number, the forge CLI (`gh` or `glab`), [merge-rules.md](merge-rules.md), the Calling repo's `.agent-flow/merge-rules.md` if present, `openspec/changes/<topic>/` and `.agent-flow/config`. It runs read-only commands only, writes `merge-check.md` (the head sha it checked, then one row per rule) to the work directory, and returns `PASS` or the failing rules. Right before `land.py`, compare that sha with the PR's head; if the head moved, check again. The merge check does not replace what a machine can enforce: keep the platform protection (M5), CI and `merge_gate.py`.
 
-`land.py <pr> [--worktree <dir>] [--repo-root <dir>]` runs the `merge_gate.py` checks, updates the branch and waits for checks when it is behind, merges with a merge commit (`gh pr merge <n> --merge`), and only after `gh pr view --json state` says MERGED removes the worktree and deletes the local and remote branch. Do not poll or clean up by hand. Any failure prints why and touches nothing. A merge from the default branch added by that update keeps the review evidence valid; any other commit after the review needs a new review. Never squash, so `git revert -m 1 <sha>` undoes it. Deploy and publish are outside the Method: ask first.
+`land.py <pr> [--worktree <dir>] [--repo-root <dir>]` reads the head commit, runs the `merge_gate.py` checks, and merges that commit with a merge commit, so a commit pushed meanwhile is refused. On GitHub it first updates a behind branch and waits for its checks, then runs `gh pr merge <n> --merge --match-head-commit <sha>`. On GitLab it calls the merge API with the head sha and squash off; GitLab cannot update a branch with a merge (its rebase would drop the reviewed commits), so `land.py` stops on an MR behind its target: merge the target branch into the MR's branch with a merge commit, push, wait for CI and run the merge check and `land.py` again. Only when the PR or MR then reads as merged does it remove the worktree and delete the local branch and the remote one (unless the forge already deleted it). Do not poll or clean up by hand. Any failure prints why and touches nothing. A merge from the default branch added by that update keeps the review evidence valid; any other commit after the review needs a new review. Never squash, so `git revert -m 1 <sha>` undoes it. Deploy and publish are outside the Method: ask first.
 
 ## 9. Archive
 
