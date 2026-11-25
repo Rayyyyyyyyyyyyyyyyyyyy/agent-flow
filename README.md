@@ -78,7 +78,7 @@ To pick up after a crash or on another machine, run the same command with the sa
 | 5 Apply | `/opsx:apply`, one task group at a time on `agent-flow/<topic>` (ready groups in parallel with `apply: parallel`); each group's model follows its size |
 | 6 Code review | A reviewer that is not the implementer reads the integration PR's diff against each task in `tasks.md` and posts a table on the PR: `PASS` or `FAIL` per task with `file:line` and the covering test; reports its token use |
 | 7 Test check | CI's `evidence-check` job re-runs every locked `Verify:` command (the program tests) at the PR head |
-| 8 Merge | `land.py` runs `merge_gate.py` (green tests, every task `PASS` in the latest review table on the current code), updates a branch that is behind, and merges with a merge commit |
+| 8 Merge | A separate agent checks every merge rule (same code, up to date, the diff is the change, independent approval, platform protection, merge commit, nothing open) read-only through `gh`/`glab`; then `land.py` runs `merge_gate.py` (green tests, every task `PASS` in the latest review table on the current code), updates a branch that is behind, and merges with a merge commit |
 | 9 Archive | `/opsx:archive` folds the change into `openspec/specs/`, merged through the gate |
 
 OpenSpec runs explore, propose, apply and archive (see `docs/adr/0003`). For research and review agent-flow brings no skills of its own; it uses whatever this session has installed (see `docs/adr/0002`).
