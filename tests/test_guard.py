@@ -42,7 +42,7 @@ class GuardTest(unittest.TestCase):
 
     def test_edit_locked_path_denied_on_integration_branch(self):
         d = self.repo()
-        for path in (".agent-flow/verify.py", ".github/workflows/ci.yml", "openspec/config.yaml",
+        for path in (".agent-flow/verify.py", ".github/workflows/ci.yml", ".gitlab-ci.yml", "openspec/config.yaml",
                      "openspec/changes/t/specs/cap/spec.md"):
             decision, reason = self.run_guard(d, "Edit", file_path=str(d / path))
             self.assertEqual(decision, "deny", path)
@@ -80,7 +80,7 @@ class GuardTest(unittest.TestCase):
         for cmd in ("git push --force origin x", "git push -f", "git push origin +x", "git push origin --delete x",
                     "git push origin :x", "git reset --hard HEAD~1", "git clean -fdx", "git checkout -- src/a.py",
                     "git checkout .", "git restore src/a.py", "git branch -D x", "git stash drop",
-                    "git worktree remove --force ../w", "rm -rf build", "sudo rm -r /tmp/x", "gh repo delete o/r --yes",
+                    "git worktree remove --force ../w", "rm -rf build", "sudo rm -r /tmp/x", "gh repo delete o/r --yes", "glab release delete v1",
                     "git -C sub reset --hard", "bash -c 'git reset --hard'", "ls && git clean -f"):
             decision, reason = self.run_guard(d, "Bash", command=cmd)
             self.assertEqual(decision, "ask", cmd)

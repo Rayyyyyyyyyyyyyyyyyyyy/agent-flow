@@ -8,7 +8,7 @@ Active only in a git repo whose root has `.agent-flow/`; anywhere else it prints
   git rm/mv/checkout/restore/apply): deny.
 - Bash that can delete or overwrite work on any branch (force push, remote branch delete, reset --hard,
   clean -f, checkout -f or `-- <path>`, restore, branch -D, stash drop/clear, worktree remove --force,
-  history rewrites, recursive rm, gh repo/release delete): ask.
+  history rewrites, recursive rm, gh|glab repo/release delete): ask.
 Input it cannot read or parse is denied (fail-closed). merge_gate.py stays the authority; this is the early fence.
 """
 import json
@@ -104,8 +104,8 @@ def destructive(words):
     if prog == "rm" and any(f in ("-r", "-R", "--recursive") or (not f.startswith("--") and set("rR") & set(f))
                             for f in flags):
         return "recursive rm"
-    if prog == "gh" and len(words) > 2 and words[1] in ("repo", "release") and words[2] == "delete":
-        return f"gh {words[1]} delete"
+    if prog in ("gh", "glab") and len(words) > 2 and words[1] in ("repo", "release") and words[2] == "delete":
+        return f"{prog} {words[1]} delete"
     if prog != "git":
         return None
     args = git_args(words)
