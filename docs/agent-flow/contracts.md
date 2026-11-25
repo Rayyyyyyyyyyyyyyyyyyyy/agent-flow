@@ -37,7 +37,8 @@ Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: h
 - CLI: `verify.py [--check-only] [<specs dir> ...]`; default dirs: `openspec/changes/*/specs` under the cwd (archived changes are not read); spec files are found recursively. Stdlib only; a Calling repo runs a copy at `.agent-flow/verify.py`.
 - Output lines: `ERROR <file>:<line>: <reason>`, `PASS <file>:<line>: <command>`, `FAIL <file>:<line>: <command> (exit <n>)` plus up to 20 indented output lines, `OWNER <file>:<line>: <scenario>`.
 - Exit 0 all passed (owner-judged Scenarios listed, not run), 1 a failure or a malformed spec, 2 no spec files. `--check-only` validates and runs nothing.
-- CI job `evidence-check` runs only on heads starting `agent-flow/<topic>`, on that change's specs only: `--check-only openspec/changes/<topic>/specs` for a `-plan` head, `--check-only openspec/changes/archive/*-<topic>/specs` for an `-archive` head, else `openspec/changes/<topic>/specs`.
+- `verify.py --head agent-flow/<topic>[-plan|-archive]` (no specs dirs with it): a `-plan` head validates `openspec/changes/<topic>/specs` (`--check-only`), an `-archive` head validates `openspec/changes/archive/YYYY-MM-DD-<topic>/specs` (`--check-only`; none found is exit 2), any other head runs `openspec/changes/<topic>/specs`. A head not starting `agent-flow/` is exit 2.
+- CI job `evidence-check` runs only on heads starting `agent-flow/`, as `python3 .agent-flow/verify.py --head <head branch>`.
 
 ## merge_gate.py
 

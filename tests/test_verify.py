@@ -91,6 +91,20 @@ class VerifyTest(unittest.TestCase):
         finally:
             os.chdir(cwd)
 
+    def test_head_runs_its_change_only(self):  # other changes, written without Verify lines, are not read
+        root_spec = '#### Scenario: broken\n- **THEN** x\n  Verify: `{py} -c "raise SystemExit(3)"`\n'
+        self.assertEqual(self.run_verify(SPEC, args=["--head", "agent-flow/t"])[0], 0)
+        self.assertEqual(self.run_verify(root_spec, args=["--head", "agent-flow/t"])[0], 1)
+        self.assertEqual(self.run_verify(root_spec, args=["--head", "agent-flow/t-plan"])[0], 0)  # validates only
+
+    def test_head_archive_reads_the_dated_copy(self):
+        code, out = self.run_verify(SPEC, args=["--head", "agent-flow/old-archive"])
+        self.assertEqual(code, 1)  # the archived fixture has no Verify line
+        self.assertIn("archive/2026-01-01-old/specs", out)
+        self.assertEqual(self.run_verify(SPEC, args=["--head", "agent-flow/ld-archive"])[0], 2)  # not `*-ld`: none found
+
+    def test_head_outside_agent_flow_is_usage_error(self):
+        self.assertEqual(self.run_verify(SPEC, args=["--head", "feature/x"])[0], 2)
 
 if __name__ == "__main__":
     unittest.main()

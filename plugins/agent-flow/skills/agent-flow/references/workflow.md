@@ -110,18 +110,12 @@ Copy `${CLAUDE_PLUGIN_ROOT}/scripts/verify.py` to `.agent-flow/verify.py` when i
     steps:
       - uses: actions/checkout@v4
       # the repo's setup steps (runtime, dependency install) go here
-      - run: |
-          t=${REF#agent-flow/}
-          case $t in
-            *-archive) python3 .agent-flow/verify.py --check-only openspec/changes/archive/*-"${t%-archive}"/specs ;;
-            *-plan) python3 .agent-flow/verify.py --check-only "openspec/changes/${t%-plan}/specs" ;;
-            *) python3 .agent-flow/verify.py "openspec/changes/$t/specs" ;;
-          esac
+      - run: python3 .agent-flow/verify.py --head "$REF"
         env:
           REF: ${{ github.head_ref }}
 ```
 
-The job reads only this change's specs, so other OpenSpec changes in the repo, written without Verify lines, do not fail it. The Plan PR only validates the specs; the integration PR runs every Verify command; the archive PR validates the archived copy, which gives it a passing check even when the repo's own CI runs only on the default branch. The job is skipped on PRs that are not agent-flow's. CI runs only verify commands: no deploy, no secrets.
+`--head` picks the specs from the branch name (contracts: `verify.py`). The job reads only this change's specs, so other OpenSpec changes in the repo, written without Verify lines, do not fail it. The Plan PR only validates the specs; the integration PR runs every Verify command; the archive PR validates the archived copy, which gives it a passing check even when the repo's own CI runs only on the default branch. The job is skipped on PRs that are not agent-flow's. CI runs only verify commands: no deploy, no secrets.
 
 Branches: push `agent-flow/<topic>` from the default branch, then `agent-flow/<topic>-plan` carrying `discussion.md`, `foundation.md`, `openspec/changes/<topic>/`, `.agent-flow/` (skills map, `verify.py`, config if any), CI changes and repo rules. Open the Plan PR into `agent-flow/<topic>`.
 

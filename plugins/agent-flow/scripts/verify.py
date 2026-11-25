@@ -2,6 +2,9 @@
 """Evidence check: run every OpenSpec Scenario's Verify command; exit code alone decides.
 
 usage: verify.py [--check-only] [<specs dir> ...]   default: every openspec/changes/*/specs under the cwd
+       verify.py --head agent-flow/<topic>[-plan|-archive]   what CI checks for that branch: the Plan PR
+       validates openspec/changes/<topic>/specs, the archive PR validates its archived copy
+       openspec/changes/archive/YYYY-MM-DD-<topic>/specs, any other head runs openspec/changes/<topic>/specs.
 A criterion is a `#### Scenario: <name>` heading in a spec file (searched recursively), followed by an
 indented `Verify: `<command>`` line (one or more) or an `Owner judges: <how>` line.
 Exit 0 every command passed (owner-judged criteria are listed, not run), 1 a command failed or a
@@ -10,6 +13,7 @@ spec is malformed, 2 no spec files found.
 Stdlib only, so a Calling repo's CI can run a copy of it (`.agent-flow/verify.py`) without the plugin.
 """
 import argparse
+import glob
 import re
 import shlex
 import subprocess
@@ -53,9 +57,21 @@ def parse(path):
 def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--check-only", action="store_true", help="validate specs, run nothing")
+    ap.add_argument("--head", help="an agent-flow/ branch: check that change's specs the way CI does")
     ap.add_argument("dirs", nargs="*")
     a = ap.parse_args(argv)
     dirs = [Path(d) for d in a.dirs] or sorted(Path(".").glob("openspec/changes/*/specs"))
+    if a.head:
+        if not a.head.startswith("agent-flow/") or a.dirs:
+            print("--head takes an agent-flow/<topic> branch and no specs dirs", file=sys.stderr)
+            return 2
+        t = a.head.removeprefix("agent-flow/")
+        if t.endswith("-archive"):
+            date = "[0-9]" * 4 + "-" + "[0-9]" * 2 + "-" + "[0-9]" * 2
+            dirs = sorted(Path(".").glob(f"openspec/changes/archive/{date}-{glob.escape(t.removesuffix('-archive'))}/specs"))
+        else:
+            dirs = [Path(f"openspec/changes/{t.removesuffix('-plan')}/specs")]
+        a.check_only = a.check_only or t.endswith(("-plan", "-archive"))
     files = sorted(f for d in dirs for f in d.rglob("*.md"))
     if not files:
         print("no spec files found", file=sys.stderr)

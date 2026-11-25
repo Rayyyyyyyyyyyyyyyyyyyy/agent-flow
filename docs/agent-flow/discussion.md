@@ -89,6 +89,7 @@ This phase is the Method; release waits for #13.
 - 2026-11-24 user (「不用，但我要加入release 的觸發」): no auto-update note in the README. A new plugin version is released automatically: after `ci` passes on a push to `main`, `release.yml` runs `scripts/release.py`, which creates tag and GitHub release `v<version>` once per version, with generated notes, as a pre-release while the version is 0.x (the Method is still unproven, #13).
 - 2026-11-24 agent: not taken from those sources: superpowers' ban on parallel implementers (worktrees isolate), gstack "Boil the Ocean" (against scope), ECC `verification-loop` (pipes in checks), per-tool telemetry hooks, deleting most comments, screenshots or E2E by default (E2E stays per project).
 - 2026-11-24 user (「不要留歷史混淆你自己」「都刪,tickets.md 也刪」): records hold the current state only. Deleted: `parity.md`, `docs/research/sandbox-for-audit-reruns.md`, `docs/agent-flow/reviews/`, `references/tickets.md`, and superseded Decisions.
+- 2026-11-25 Owner (archive PR blocked with `CI has no passing check` in a Calling repo): the `evidence-check` job runs on every `agent-flow/` head, reading only that change's specs through `verify.py --head`; the archive PR validates its archived copy, so it always has a passing check. The skill replaces an older `evidence-check` job that differs.
 
 ## Open questions
 
