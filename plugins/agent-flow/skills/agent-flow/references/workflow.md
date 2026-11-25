@@ -101,19 +101,27 @@ Once per change, start a fresh subagent (`model: sonnet`) with only `openspec/ch
 
 Run `python3 .agent-flow/verify.py openspec/changes/<topic>/specs` on the unimplemented tree. Commands meant to fail must fail for the stated reason; each must finish by itself, leaving no server or process running.
 
-Copy `${CLAUDE_PLUGIN_ROOT}/scripts/verify.py` to `.agent-flow/verify.py` when it is missing or differs. Add this job to the repo's CI workflow (create `.github/workflows/ci.yml` if none runs on pull requests), with the repo's own setup steps so its Verify commands can run:
+Copy `${CLAUDE_PLUGIN_ROOT}/scripts/verify.py` to `.agent-flow/verify.py` when it is missing or differs. Add this job to the repo's CI workflow, replacing an `evidence-check` job that differs from it (create `.github/workflows/ci.yml` if none runs on pull requests), with the repo's own setup steps so its Verify commands can run:
 
 ```yaml
   evidence-check:
-    if: ${{ startsWith(github.head_ref, 'agent-flow/') && !endsWith(github.head_ref, '-archive') }}
+    if: ${{ startsWith(github.head_ref, 'agent-flow/') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       # the repo's setup steps (runtime, dependency install) go here
-      - run: python3 .agent-flow/verify.py ${{ github.base_ref != github.event.repository.default_branch && '--check-only' || '' }}
+      - run: |
+          t=${REF#agent-flow/}
+          case $t in
+            *-archive) python3 .agent-flow/verify.py --check-only openspec/changes/archive/*-"${t%-archive}"/specs ;;
+            *-plan) python3 .agent-flow/verify.py --check-only "openspec/changes/${t%-plan}/specs" ;;
+            *) python3 .agent-flow/verify.py "openspec/changes/$t/specs" ;;
+          esac
+        env:
+          REF: ${{ github.head_ref }}
 ```
 
-The Plan PR (into the integration branch) only validates the specs; the integration PR (into the default branch) runs every Verify command. The job is skipped on the archive PR and on PRs that are not agent-flow's. CI runs only verify commands: no deploy, no secrets.
+The job reads only this change's specs, so other OpenSpec changes in the repo, written without Verify lines, do not fail it. The Plan PR only validates the specs; the integration PR runs every Verify command; the archive PR validates the archived copy, which gives it a passing check even when the repo's own CI runs only on the default branch. The job is skipped on PRs that are not agent-flow's. CI runs only verify commands: no deploy, no secrets.
 
 Branches: push `agent-flow/<topic>` from the default branch, then `agent-flow/<topic>-plan` carrying `discussion.md`, `foundation.md`, `openspec/changes/<topic>/`, `.agent-flow/` (skills map, `verify.py`, config if any), CI changes and repo rules. Open the Plan PR into `agent-flow/<topic>`.
 
