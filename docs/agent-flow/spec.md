@@ -18,7 +18,7 @@ The Owner can get code written by Claude Code, but not a finished, checked chang
 5. Apply: `/opsx:apply`, task groups in parallel, one worktree each, test-first; one integration branch and one PR per goal.
 6. Code review with the chosen code-review skill, once, by a reviewer that is not the implementer: each task in `tasks.md` gets `PASS` or `FAIL` with code-level evidence (`file:line`, the covering test), posted on the integration PR as the review evidence record; cumulative tokens reported.
 7. Test check: CI runs every locked Verify command, the program tests.
-8. Merge through `merge_gate.py` and `land.py`; the gate requires green tests and review evidence passing every task on the current code.
+8. Merge: a separate agent runs the merge check (every merge rule, read-only through `gh` or `glab`); then `merge_gate.py` and `land.py`; the gate requires green tests and review evidence passing every task on the current code.
 9. Archive: `/opsx:archive` folds the change into `openspec/specs/`, merged through the gate.
 
 agent-flow is an abstract method: it cannot write a Calling repo's acceptance criteria, so it sets only the floor; the OpenSpec change the Owner approves in the Plan PR says what is accepted. agent-flow itself owns only what no other tool provides: the Boundaries, the Plan PR gate, the locks, the test check rules, the review evidence gate, `merge_gate.py`/`land.py`, `doctor.py`, and the order of steps.

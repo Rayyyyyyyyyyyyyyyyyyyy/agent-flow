@@ -1,12 +1,13 @@
 """The shipped rules state the boundaries (C6), resume (C13), cost (C14), repo rules (C16),
 Environment alignment (C17), propose, confirm and Plan PR (C18), locks (C19), test check (C20),
-owner-judged items (C22), archive (C23), code review and review evidence (C25)."""
+owner-judged items (C22), archive (C23), code review and review evidence (C25), merge check (C26)."""
 import unittest
 from pathlib import Path
 
 SKILL_DIR = Path(__file__).resolve().parents[1] / "plugins/agent-flow/skills/agent-flow"
 SKILL = (SKILL_DIR / "SKILL.md").read_text()
 WORKFLOW = (SKILL_DIR / "references/workflow.md").read_text()
+MERGE_RULES = (SKILL_DIR / "references/merge-rules.md").read_text()
 BOUNDARIES = SKILL[SKILL.index("## Boundaries"):SKILL.index("## Kill switch")]
 
 
@@ -197,3 +198,25 @@ class Reporting(unittest.TestCase):  # C14
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MergeCheck(unittest.TestCase):  # C26
+    def test_rules(self):
+        for s in ["## M1 Same code", "## M2 Up to date with the target", "## M3 The diff is the change",
+                  "## M4 Independent approval", "## M5 The platform enforces it", "## M6 Merge commit",
+                  "## M7 Nothing open", "## M8 After the merge"]:
+            self.assertIn(s, MERGE_RULES)
+
+    def test_how_to_check(self):
+        for s in ["is `FAIL`, never `PASS`", "another agent's word is not evidence", "`.agent-flow/merge-rules.md`",
+                  "may add rules, never remove or loosen one", "`gh pr merge --match-head-commit <sha>`",
+                  "`glab mr merge --sha <sha>`", "`gh pr diff <n>", "`glab mr diff <n>`", "administrators cannot bypass it"]:
+            self.assertIn(s, MERGE_RULES)
+
+    def test_step_8(self):
+        for s in ["Before every `land.py` run, the merge check", "wrote and reviewed nothing in this change",
+                  "references/merge-rules.md", "read-only", "never merge past it", "confirms rule M8"]:
+            self.assertIn(s, step(8))
+        self.assertIn("after the merge check", step(9))
+        for s in ["never the implementer or the reviewer", "`merge-check.md`", "if the head moved, check again"]:
+            self.assertIn(s, WORKFLOW)

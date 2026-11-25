@@ -64,6 +64,8 @@ Integration branch `agent-flow/<topic>`, cut from the default branch. Plan PR: h
 
 Optional. Keys: `plan: agent` (the agent may land the Plan PR), `merge: never` (kill switch), `apply: parallel` (ready task groups run at the same time; default one at a time, read by the skill only), `protect: <glob>` (one per line; more paths locked like the fixed ones, read by `merge_gate.py` and `guard.py`).
 
+`.agent-flow/merge-rules.md` (Calling repo, optional, locked): merge rules added to the shipped `references/merge-rules.md` (M1-M8); read by the merge check (SKILL.md step 8). It may add rules, never remove or loosen one.
+
 ## land.py
 
 - CLI: `land.py <pr-number> [--worktree <dir>] [--repo-root <dir>]`; imports `merge_gate.main`, so its BLOCKED lines and exit codes pass through. Exit 0 merged, 1 blocked or failed, 2 setup error.
@@ -80,7 +82,7 @@ Optional. Keys: `plan: agent` (the agent may land the Plan PR), `merge: never` (
 
 ## Work files (Calling repo)
 
-`$(git rev-parse --git-common-dir)/agent-flow/<topic>/`, never committed: `group-N-brief.md`, `group-N-report.md`, `review-package.md`, `review-evidence.md` (the record before it is posted).
+`$(git rev-parse --git-common-dir)/agent-flow/<topic>/`, never committed: `group-N-brief.md`, `group-N-report.md`, `review-package.md`, `review-evidence.md` (the record before it is posted), `merge-check.md` (the merge check's head sha, then `| Rule | PASS or FAIL | Command | What it showed |` per rule).
 
 ## doctor.py
 

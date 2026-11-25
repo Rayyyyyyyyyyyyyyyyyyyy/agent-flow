@@ -62,6 +62,10 @@ _Avoid_: assumption (when meaning a decision)
 A code review by a model that implemented nothing in the change: it reads the diff against each task in `tasks.md` and gives each `PASS` or `FAIL` with evidence; it also judges quality, scope, and whether the Verify commands really test their Scenarios.
 _Avoid_: audit, test (when meaning the review)
 
+**Merge check**:
+A subagent that wrote and reviewed nothing in the change, checking every merge rule (`references/merge-rules.md` plus the Calling repo's `.agent-flow/merge-rules.md`) read-only through `gh` or `glab` before each `land.py` run; any `FAIL` stops the merge.
+_Avoid_: merge gate (that is `merge_gate.py`), approval
+
 **Review evidence**:
 The Review's per-task table (`| Task | Verdict | Evidence |`, evidence being `file:line` in the diff and the covering test, or why none), posted as a PR comment that names the reviewed commit; `merge_gate.py` merges nothing without it.
 _Avoid_: approval, sign-off, evidence check
