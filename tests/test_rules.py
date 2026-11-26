@@ -23,7 +23,7 @@ class Boundaries(unittest.TestCase):
 
     def test_ask_first_items(self):
         for s in ["deploy or publish to users", "repos or services the user does not own", "notifies other people",
-                  "using secrets", "spending money", "deleting or overwriting the user's own data", "browser use",
+                  "using secrets", "spending money", "deleting or overwriting the user's own data", "browser use", "unless the user's own instructions already permit that use",
                   "spends the user's usage", "estimated cost"]:
             self.assertIn(s, BOUNDARIES)
 

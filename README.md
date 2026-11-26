@@ -91,7 +91,7 @@ OpenSpec runs explore, propose, apply and archive (see `docs/adr/0003`). For res
 - **Review evidence**: the gate refuses an implementation PR unless the latest review table covers every task in `tasks.md` with `PASS` and evidence, every task is ticked, and nothing but merges was pushed after the reviewed commit. It catches a skipped or stale review, not a dishonest one (`docs/adr/0005`).
 - **Owner-judged criteria**: a PR labelled `agent-flow:owner-judges` is never merged by the agent.
 - **Kill switch**: create `.agent-flow/STOP`, or put `merge: never` in `.agent-flow/config`. PRs still open; nothing merges. Interrupt the session to stop everything.
-- **Asks first**: deploying or publishing, writing to repos or services you do not own, notifying other people, using secrets, spending money, deleting your data, any browser use, and verification that creates external resources or spends your usage.
+- **Asks first**: deploying or publishing, writing to repos or services you do not own, notifying other people, using secrets, spending money, deleting your data, any browser use your own instructions do not already permit, and verification that creates external resources or spends your usage.
 
 Running the skill in a repo is your consent to branch, commit, push, open PRs, set up CI and merge its own PRs through the gate. The full rules are in `plugins/agent-flow/skills/agent-flow/SKILL.md`.
 
