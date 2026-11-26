@@ -58,6 +58,16 @@ Finish line rules:
 - Every line has external evidence: a test, a command, a measured number, a reproduction from raw data. If only the user can judge it, write `evidence: user judges`.
 - Apply the four questions from [records.md](records.md).
 
+### Starting from a proposed change
+
+The second entry: the user has already run explore and propose. It applies when the user names an OpenSpec change, or their words point to one in `openspec list --json`, and `openspec status --change <topic> --json` shows every artifact done. The topic is the change's name. Then:
+
+- Step 1: no explore and no classification. `discussion.md` gets the user's words verbatim and a finish line taken from the proposal and its Scenarios. The proposal's scope is the user's: do not narrow or widen it. Ask only where the proposal leaves the finish line undecided.
+- Step 3: do not run `/opsx:propose`. Add only what agent-flow needs and the change lacks: a Verify command or `Owner judges:` line under each Scenario, and `Blocked by:` and `Size:` for each `tasks.md` group. Do not rewrite a Scenario's WHEN/THEN or the proposal; where a Scenario cannot get a Verify command as written, ask the user. List every addition in the Plan PR body, and any other edit (such as a fix from the guess check) separately, so the user sees what moved.
+- The Plan PR carries the change. If its files are uncommitted in the main worktree, copy them onto the `-plan` branch and leave the main worktree as it is; tell the user its copy can go once the Plan PR merges.
+
+A change with an artifact not done is not this entry: tell the user which artifacts are missing, and that they can finish it with `/opsx:propose` or have agent-flow explore from their words. Steps 0, 2 and 4-9 run as usual.
+
 ## 2. Gather facts
 
 Research order: official docs, source code, web search, then a trial run. Keep large documents out of the coordinator: research goes to a subagent or the chosen research skill, which returns quoted lines and their source. If the network or a site is blocked, switch source; if a site is truly needed, tell the user which and why.

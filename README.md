@@ -44,9 +44,12 @@ Goal: <what>. It is done when <finish line>.
 Direction: I want <area> to get better; talk with me first about how far this run should go.
 Seed: I have an idea, <idea>. Research it first and only ask what you cannot look up.
 Continue <topic> from where it stopped.
+Take the OpenSpec change <name> to merged.
 ```
 
 Every request is explored unless you say it is a goal or to skip explore; the agent never decides that on its own. A goal goes straight to its finish line. A direction or seed is explored with you through `/opsx:explore`; you decide when to move on to propose.
+
+Or run `/opsx:explore` and `/opsx:propose` yourself first, then name the change. When every artifact is done, the agent skips explore and propose, keeps your scope, and only adds what the gate needs: a Verify command per Scenario and each task group's blockers and size, listed in the Plan PR for you to approve.
 
 To pick up after a crash or on another machine, run the same command with the same goal (or the last opener above). The agent reads `docs/<topic>/discussion.md`, `openspec/changes/<topic>/` and the open PRs, and continues from the first unfinished step without duplicating branches, changes or PRs.
 
