@@ -248,6 +248,14 @@ class Scope(unittest.TestCase):
         self.assertIn("name what the user's words ask for that it leaves out", step(4))
         self.assertIn("candidate next finish lines", SKILL[SKILL.index("## Reporting"):])
 
+    def test_proposed_change_entry(self):
+        self.assertIn("### Starting from a proposed change", WORKFLOW)
+        for t in ["shows every artifact done", "do not run `/opsx:propose`", "The proposal's scope is the user's",
+                  "Do not rewrite a Scenario's WHEN/THEN or the proposal", "List every addition in the Plan PR body",
+                  "leave the main worktree as it is", "is not this entry"]:
+            self.assertIn(t, WORKFLOW)
+        self.assertIn("start from it (workflow.md, Starting from a proposed change)", step(1))
+
 
 if __name__ == "__main__":
     unittest.main()
