@@ -237,5 +237,15 @@ class MergeCheck(unittest.TestCase):  # C26
             self.assertIn(s, WORKFLOW)
 
 
+class Scope(unittest.TestCase):
+    def test_scope_is_the_users(self):
+        self.assertIn("When unsure, treat it as the less mature kind", WORKFLOW)
+        self.assertIn("Tell the user the kind and why in your first reply.", WORKFLOW)
+        self.assertIn("Narrowing the scope is the user's decision.", WORKFLOW)
+        self.assertNotIn("more mature kind", WORKFLOW)
+        self.assertIn("name what the user's words ask for that it leaves out", step(4))
+        self.assertIn("candidate next finish lines", SKILL[SKILL.index("## Reporting"):])
+
+
 if __name__ == "__main__":
     unittest.main()
