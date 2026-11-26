@@ -11,7 +11,7 @@ The Owner can get code written by Claude Code, but not a finished, checked chang
 `agent-flow` is a Claude Code plugin. The Owner (first user; others are a by-product) installs it and OpenSpec, runs `openspec init` once per repo, and runs `/agent-flow:agent-flow <goal>` in a Calling repo. The Method runs there:
 
 0. Environment alignment: `doctor.py` checks the tools, OpenSpec included; for the steps OpenSpec does not cover, pick one installed skill per step with a reason and record `.agent-flow/skills.md`.
-1. Receive the request: a goal goes straight to its finish line; a direction or seed is explored with the Owner through `/opsx:explore` until the Owner moves on.
+1. Receive the request: only the Owner makes a request a goal (the agent never classifies one as a goal); a goal goes straight to its finish line; a direction or seed is explored with the Owner through `/opsx:explore` until the Owner moves on.
 2. Gather facts into `docs/<topic>/foundation.md`, each with a source; unsourced facts are assumptions. Write the repo's own rules after reading it.
 3. Propose: `/opsx:propose <topic>` writes `openspec/changes/<topic>/`; every Scenario carries a Verify command; open the Plan PR.
 4. Confirm with the Owner; merging the Plan PR is the go-ahead (the agent merges it only with `plan: agent`).

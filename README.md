@@ -46,7 +46,7 @@ Seed: I have an idea, <idea>. Research it first and only ask what you cannot loo
 Continue <topic> from where it stopped.
 ```
 
-A goal goes straight to its finish line. A direction or seed is explored with you through `/opsx:explore`; you decide when to move on to propose.
+Every request is explored unless you say it is a goal or to skip explore; the agent never decides that on its own. A goal goes straight to its finish line. A direction or seed is explored with you through `/opsx:explore`; you decide when to move on to propose.
 
 To pick up after a crash or on another machine, run the same command with the same goal (or the last opener above). The agent reads `docs/<topic>/discussion.md`, `openspec/changes/<topic>/` and the open PRs, and continues from the first unfinished step without duplicating branches, changes or PRs.
 
