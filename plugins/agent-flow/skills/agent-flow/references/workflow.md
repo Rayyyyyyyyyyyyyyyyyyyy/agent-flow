@@ -49,11 +49,12 @@ Fallbacks, only for a step no installed skill covers:
 | **Direction**: end point undecided | `/opsx:explore` with the user; offer 2-3 candidate finish lines, each with cost and a recommendation | The user picks one and says to move on |
 | **Seed**: a loose idea | `/opsx:explore` with the user: research feasibility and similar work; ask only what cannot be found (preferences, resources, limits) | The user says to move on |
 
-When unsure which, treat it as the more mature kind and say how you judged. Put the user's words in `discussion.md` verbatim ([records.md](records.md)). Explore is the user's discussion: do not end it, propose or implement from it on your own.
+A goal's words fix the whole result. Words that describe more than they ask for now, or leave the end open, make it a direction. When unsure, treat it as the less mature kind: an extra explore costs one exchange, a wrong goal costs a whole run. Tell the user the kind and why in your first reply. Put the user's words in `discussion.md` verbatim ([records.md](records.md)). Explore is the user's discussion: do not end it, propose or implement from it on your own.
 
 Finish line rules:
 
 - Results, not methods. The user's words bound the scope. A larger version or better route goes into Decisions as an option; work to the original words meanwhile.
+- Narrowing the scope is the user's decision. What the user's words ask for and this finish line leaves out is named to the user as a candidate for a later run, never written as a non-goal on your own.
 - Every line has external evidence: a test, a command, a measured number, a reproduction from raw data. If only the user can judge it, write `evidence: user judges`.
 - Apply the four questions from [records.md](records.md).
 
