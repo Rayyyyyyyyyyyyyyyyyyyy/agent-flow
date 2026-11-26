@@ -45,11 +45,11 @@ Fallbacks, only for a step no installed skill covers:
 
 | The user gives | You do | Moves on when |
 |---|---|---|
-| **Goal**: a result they want | Write it as a finish line; no explore | Written |
+| **Goal**: only when the user says it is a goal or to skip explore | Write it as a finish line; no explore | Written |
 | **Direction**: end point undecided | `/opsx:explore` with the user; offer 2-3 candidate finish lines, each with cost and a recommendation | The user picks one and says to move on |
 | **Seed**: a loose idea | `/opsx:explore` with the user: research feasibility and similar work; ask only what cannot be found (preferences, resources, limits) | The user says to move on |
 
-A goal's words fix the whole result. Words that describe more than they ask for now, or leave the end open, make it a direction. When unsure, treat it as the less mature kind: an extra explore costs one exchange, a wrong goal costs a whole run. Tell the user the kind and why in your first reply. Put the user's words in `discussion.md` verbatim ([records.md](records.md)). Explore is the user's discussion: do not end it, propose or implement from it on your own.
+Never classify a request as a goal yourself: treat every request as unsure, so it is explored, unless the user says it is a goal or to skip explore. An extra explore costs one exchange; a wrong goal costs a whole run. Between direction and seed, take the less mature kind when unsure. Tell the user the kind and why in your first reply. Put the user's words in `discussion.md` verbatim ([records.md](records.md)). Explore is the user's discussion: do not end it, propose or implement from it on your own.
 
 Finish line rules:
 

@@ -239,7 +239,9 @@ class MergeCheck(unittest.TestCase):  # C26
 
 class Scope(unittest.TestCase):
     def test_scope_is_the_users(self):
-        self.assertIn("When unsure, treat it as the less mature kind", WORKFLOW)
+        self.assertIn("Never classify a request as a goal yourself", WORKFLOW)
+        self.assertIn("unless the user says it is a goal or to skip explore", WORKFLOW)
+        self.assertIn("never classify one as a goal yourself", step(1))
         self.assertIn("Tell the user the kind and why in your first reply.", WORKFLOW)
         self.assertIn("Narrowing the scope is the user's decision.", WORKFLOW)
         self.assertNotIn("more mature kind", WORKFLOW)
